@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grandes Contas 360 — Comparativo por Caixa</title>
+<link rel="icon" href="assets/ativa.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="banner-demo" class="banner-demo" hidden>⚠ DADOS DE DEMONSTRAÇÃO — compras fictícias, apenas para testar o painel. Não use para decisões comerciais.</div>
+
+<header class="topo">
+  <div class="topo-in">
+    <img class="logo" src="assets/ativa.png" alt="Ativa Representações">
+    <div class="titulo">
+      <h1>Grandes Contas <span>360</span></h1>
+      <p>Comparativo por caixa de motor · Padre Cícero × Bezerra Oliveira · <span id="fonte">carregando…</span></p>
+    </div>
+    <div class="topo-acoes">
+      <img class="logo-marca" src="assets/eurotecnica.png" alt="Eurotécnica / Euroricambi">
+      <div class="seg" role="group" aria-label="Fonte de dados">
+        <button id="btn-real" class="on">Dados reais</button>
+        <button id="btn-demo">Demonstração</button>
+      </div>
+      <button id="btn-importar" class="btn-laranja">Importar planilha</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="filtros card" aria-label="Filtros">
+    <div class="linha">
+      <label class="campo grande"><span>Cliente analisado</span><div id="cb-cliente" class="combo"></div></label>
+      <label class="campo"><span>Referência 1</span><div id="cb-r1" class="combo"></div></label>
+      <label class="campo"><span>Referência 2</span><div id="cb-r2" class="combo"></div></label>
+      <label class="campo pequeno"><span>Período — de</span><input type="date" id="per-ini"></label>
+      <label class="campo pequeno"><span>até</span><input type="date" id="per-fim"></label>
+    </div>
+    <div class="linha">
+      <label class="campo"><span>Caixa de motor</span><select id="f-caixa"></select></label>
+      <label class="campo"><span>Marca</span><select id="f-marca"></select></label>
+      <label class="campo"><span>Família</span><select id="f-familia"></select></label>
+      <label class="campo pequeno"><span>Curva</span><select id="f-curva"></select></label>
+      <label class="campo"><span>Produto (código)</span><div id="cb-produto" class="combo"></div></label>
+      <label class="campo grande"><span>Pesquisar</span><input type="search" id="f-busca" placeholder="código, descrição, aplicação…"></label>
+      <button id="btn-limpar" class="btn-link" title="Limpar filtros (mantém cliente e referências)">limpar filtros</button>
+    </div>
+    <div class="chips-titulo">Caixas de motor <small>— clique para carregar os produtos</small></div>
+    <div id="chips-caixas" class="chips"></div>
+  </section>
+
+  <section id="avisos" class="avisos"></section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="comp card">
+    <div class="comp-col">
+      <h3>Comparativo de cobertura do mix</h3>
+      <div id="comp-barras"></div>
+      <p class="nota" id="comp-nota"></p>
+    </div>
+    <div class="comp-col">
+      <h3>Cobertura do cliente por curva</h3>
+      <div id="curvas" class="curvas"></div>
+    </div>
+  </section>
+
+  <section class="card tabela-card">
+    <div class="visoes" id="visoes" role="tablist" aria-label="Visão"></div>
+    <div class="tab-info"><span id="tab-contagem"></span><span class="legenda">
+      <i class="dot verde"></i>Comprou <i class="dot vermelho"></i>Nunca comprou <i class="dot laranja"></i>Oportunidade <i class="dot cinza"></i>Sem histórico suficiente</span></div>
+    <div class="tabela-scroll"><table id="tabela"><thead></thead><tbody></tbody></table></div>
+  </section>
+</main>
+
+<aside id="drawer" class="drawer" hidden aria-label="Detalhes do produto">
+  <div class="drawer-in"><button class="fechar" id="drawer-fechar" aria-label="Fechar">×</button><div id="drawer-corpo"></div></div>
+</aside>
+
+<dialog id="dlg-importar">
+  <form method="dialog" class="dlg-in">
+    <h2>Importar base comercial</h2>
+    <p class="nota">Aceita <b>.xlsx</b> ou <b>.csv</b>. Os dados importados ficam só neste navegador (somem ao recarregar). Os produtos são ligados às vendas pelo <b>código</b>.</p>
+    <fieldset><legend>1 · Cadastro de produtos <small>(opcional — mantém o atual se vazio)</small></legend>
+      <p class="nota">Colunas: código, descrição, marca, caixa de motor, família <small>(curva, aplicação, montadora opcionais)</small>. Uma linha por produto × caixa.</p>
+      <input type="file" id="imp-cadastro" accept=".xlsx,.xls,.csv"></fieldset>
+    <fieldset><legend>2 · Histórico de vendas</legend>
+      <p class="nota">Colunas: cliente, código do produto, data da compra, quantidade <small>(valor, NF, vendedor opcionais)</small>.</p>
+      <input type="file" id="imp-vendas" accept=".xlsx,.xls,.csv"></fieldset>
+    <div id="imp-resultado" class="nota"></div>
+    <div class="dlg-btns"><button value="cancel" class="btn-link">Fechar</button><button type="button" id="imp-aplicar" class="btn-laranja">Ler e aplicar</button></div>
+  </form>
+</dialog>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
