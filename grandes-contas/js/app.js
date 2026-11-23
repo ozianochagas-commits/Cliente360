@@ -151,7 +151,25 @@ function renderPainel() {
     const rot = v === 'r1' ? `${refRotulo('r1')} compra · cliente não` : v === 'r2' ? `${refRotulo('r2')} compra · cliente não` : t;
     return `<button class="visao ${S.visao === v ? 'on' : ''} ${v === 'r1' || v === 'r2' || v === 'ambos' ? 'opp' : ''}" data-v="${v}">${esc(rot)}<b>${conta(v)}</b></button>`;
   }).join('');
+  renderResumo(ctx);
   renderTabela(uni, ind);
+}
+
+function renderResumo(ctx) {
+  const linhas = S.ds.caixas.map((cx) => {
+    const ps = E.filtrarCatalogo(E.produtosDaCaixa(S.ds, cx.id), S.f);
+    const cl = ps.map((p) => E.classificar(ctx, p, p.cod));
+    const tem = cl.filter((c) => c.a === 'comprou').length, nao = cl.filter((c) => c.a === 'nao').length;
+    return { cx, tot: ps.length, tem, nao, sem: ps.length - tem - nao, opp: cl.filter((c) => c.oport).length };
+  }).filter((l) => l.tot);
+  $('#resumo-info').textContent = S.sel.a != null ? `· ${nomeCli(S.sel.a)}` : '';
+  $('#resumo-caixas').innerHTML = linhas.map((l) => {
+    const w = (n) => (l.tot ? (n / l.tot) * 100 : 0);
+    return `<button class="rc ${S.caixa === l.cx.id ? 'on' : ''}" data-cx="${esc(l.cx.id)}" title="Abrir caixa ${esc(l.cx.id)}">
+      <span class="rc-h"><b>${esc(l.cx.id)}</b><small>${esc(l.cx.montadora)}</small></span>
+      <span class="rc-bar"><i class="v" style="width:${w(l.tem)}%"></i><i class="c" style="width:${w(l.sem)}%"></i><i class="r" style="width:${w(l.nao)}%"></i></span>
+      <span class="rc-n"><span class="t">✔ tem ${l.tem}</span> <span class="n">✖ não tem ${l.nao}</span>${l.sem ? ` <span class="s">— ${l.sem} s/ hist.</span>` : ''}${l.opp ? ` <span class="o">★ ${l.opp}</span>` : ''}</span></button>`;
+  }).join('') || '<p class="nota">Nenhuma caixa com produtos para os filtros atuais.</p>';
 }
 
 function marcaHtml(m) { const b = CONFIG.marcas[m] || CONFIG.marcaPadrao; return `<span class="marca" style="background:${b.fundo};color:${b.cor}">${esc(b.nome === 'Outra' && m ? m : b.nome)}</span>`; }
@@ -233,6 +251,7 @@ function ligar() {
   $('#f-busca').addEventListener('input', (e) => { S.f.busca = e.target.value; renderPainel(); });
   $('#btn-limpar').addEventListener('click', () => { S.f = { marca: '', familia: '', curva: '', produto: '', busca: '' }; S.visao = 'todos'; renderTudo(); });
   $('#chips-caixas').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (!b) return; S.caixa = b.dataset.cx; S.f.produto = ''; store.set('caixa', S.caixa); renderTudo(); });
+  $('#resumo-caixas').addEventListener('click', (e) => { const b = e.target.closest('.rc'); if (!b) return; S.caixa = b.dataset.cx; S.f.produto = ''; store.set('caixa', S.caixa); renderTudo(); $('.tabela-card').scrollIntoView({ behavior: 'smooth' }); });
   $('#visoes').addEventListener('click', (e) => { const b = e.target.closest('.visao'); if (!b) return; S.visao = b.dataset.v; renderPainel(); });
   $('#tabela thead').addEventListener('click', (e) => { const th = e.target.closest('th'); if (!th) return; const c = th.dataset.c; S.sort = { col: c, dir: S.sort.col === c ? -S.sort.dir : 1 }; renderPainel(); });
   $('#tabela tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-cod]'); if (tr) abrirDetalhe(tr.dataset.cod); });
