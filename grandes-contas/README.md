@@ -16,7 +16,8 @@ No Vercel basta publicar a pasta (o `index.html` da raiz do repositório é outr
 | `js/engine.js` | Regras de negócio puras: índice de compras, status por código, oportunidades, filtros, indicadores |
 | `js/importer.js` | Importação de `.xlsx` / `.csv` (cadastro de produtos e histórico de vendas) |
 | `js/app.js` | Estado, filtros, tabela, painéis, detalhe do produto |
-| `data/base.json` | Catálogo de caixas + vendas reais (gerado) |
+| `data/catalogo.json` | Catálogo de caixas e produtos (sem dados de clientes, versionado)
+| `data/base.json` | Vendas reais (gerado, fora do Git; opcional) |
 | `data/demo.json` | Compras **fictícias** (modo Demonstração, com banner amarelo) |
 | `../scripts/build_data.py` | Regenera os dois JSON a partir das planilhas |
 

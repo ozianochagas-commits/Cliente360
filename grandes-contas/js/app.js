@@ -241,7 +241,7 @@ function ligar() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#drawer').hidden = true; });
   const per = () => { S.per = { ini: $('#per-ini').value, fim: $('#per-fim').value }; recalcCompras(); };
   $('#per-ini').addEventListener('change', per); $('#per-fim').addEventListener('change', per);
-  $('#btn-real').addEventListener('click', () => { S.f.produto = ''; montarDataset(S.real); });
+  $('#btn-real').addEventListener('click', () => { if (!S.real) { $('#imp-resultado').textContent = 'Nenhuma base real carregada. Importe suas planilhas.'; $('#dlg-importar').showModal(); return; } S.f.produto = ''; montarDataset(S.real); });
   $('#btn-demo').addEventListener('click', () => { S.f.produto = ''; montarDataset(S.demo); });
   $('#btn-importar').addEventListener('click', () => { $('#imp-resultado').textContent = ''; $('#dlg-importar').showModal(); });
   $('#imp-aplicar').addEventListener('click', aplicarImportacao);
@@ -270,10 +270,13 @@ async function aplicarImportacao() {
 /* ---------- Início ---------- */
 (async function init() {
   try {
-    const [base, demo] = await Promise.all([carregar('data/base.json'), carregar('data/demo.json')]);
-    S.base = base; S.demo = demo; S.real = { meta: base.meta, clientes: base.clientes, vendas: base.vendas };
-    S.caixa = store.get('caixa') || ''; if (S.caixa && !base.caixas.some((c) => c.id === S.caixa)) S.caixa = '';
-    ligar(); montarDataset(S.real);
+    const [cat, demo] = await Promise.all([carregar('data/catalogo.json'), carregar('data/demo.json')]);
+    const real = await carregar('data/base.json').catch(() => null);   // dados reais: opcionais
+    S.base = { ...cat, meta: demo.meta }; S.demo = demo;
+    S.real = real ? { meta: real.meta, clientes: real.clientes, vendas: real.vendas } : null;
+    S.caixa = store.get('caixa') || ''; if (S.caixa && !cat.caixas.some((c) => c.id === S.caixa)) S.caixa = '';
+    if (!S.real) $('#btn-real').title = 'Sem data/base.json: use "Importar planilha"';
+    ligar(); montarDataset(S.real || S.demo);
   } catch (e) {
     document.querySelector('main').innerHTML = `<div class="aviso erro">Não foi possível carregar os dados (${esc(e.message)}). Abra o painel por um servidor web (ex.: <code>python3 -m http.server</code> dentro da pasta <code>grandes-contas</code>), não direto pelo arquivo.</div>`;
   }

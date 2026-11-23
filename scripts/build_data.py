@@ -121,9 +121,9 @@ meta = dict(fonte='Vendas_Eurotecnica_3.xlsx + Caixas_Eurotécnica_DEZ.26.xlsx',
             periodo=dict(ini=min(datas), fim=max(datas)), stats=dict(stat), vinculo=dict(via),
             gerado=dt.date.today().isoformat())
 import os; os.makedirs(a.out, exist_ok=True)
-json.dump(dict(meta=meta, caixas=caixas, produtos=produtos, clientes=clientes,
-               vendasCols=['cli', 'cod', 'data', 'qtd', 'valor', 'nf', 'vendedor'], vendas=vendas),
-          open(f'{a.out}/base.json', 'w'), ensure_ascii=False, separators=(',', ':'))
+json.dump(dict(caixas=caixas, produtos=produtos), open(f'{a.out}/catalogo.json', 'w'), ensure_ascii=False, separators=(',', ':'))  # sem dados de clientes (versionável)
+json.dump(dict(meta=meta, clientes=clientes, vendasCols=['cli', 'cod', 'data', 'qtd', 'valor', 'nf', 'vendedor'], vendas=vendas),
+          open(f'{a.out}/base.json', 'w'), ensure_ascii=False, separators=(',', ':'))  # dados reais (NÃO versionar)
 
 # ---------- Demo (FICTÍCIO) ----------
 rnd = random.Random(2026)
