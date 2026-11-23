@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cliente 360 · Eurotécnica</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+:root{
+  --verde:#009a4e; --verde-esc:#006e38; --verde-claro:#e6f5ed;
+  --preto:#111; --cinza:#6b7280; --borda:#e3e6ea; --fundo:#f3f5f4; --card:#fff;
+  --ok:#0a8f4a; --nao:#c0392b; --aa:#006e38; --a:#009a4e; --b:#d98e04; --c:#5b6770; --l:#7a3fb0;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fundo);color:var(--preto);font:13px/1.35 "Segoe UI",system-ui,Arial,sans-serif}
+.wrap{max-width:1240px;margin:0 auto;padding:12px}
+header{background:var(--preto);color:#fff;border-radius:10px 10px 0 0;padding:14px 18px;border-bottom:4px solid var(--verde)}
+header h1{margin:0;font-size:22px;font-weight:800}
+header h1 span{color:var(--verde)}
+header small{display:block;color:#b8bec6;margin-top:2px}
+header b{color:#fff}
+.painel{background:var(--card);border-radius:0 0 10px 10px;padding:14px 18px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
+label.f{font-size:10px;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.04em}
+button,select,input{font:inherit}
+.btn{border:1px solid var(--verde);background:#fff;color:var(--verde-esc);padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:700}
+.btn:hover{background:var(--verde-claro)}
+.btn.sol{background:var(--verde);color:#fff}.btn.sol:hover{background:var(--verde-esc)}
+.btn.pre{background:var(--preto);border-color:var(--preto);color:#fff}
+select,input[type=text]{border:1px solid #c9ced4;border-radius:6px;padding:6px 8px;background:#fff;min-width:0}
+.tabs{display:flex;gap:4px;margin:12px 0 8px}
+.tab{padding:7px 16px;border-radius:6px 6px 0 0;background:#dfe5e1;cursor:pointer;font-weight:700;color:#333}
+.tab.on{background:var(--verde);color:#fff}
+.sec{margin:12px 0 4px;font-size:10px;font-weight:800;color:var(--cinza);text-transform:uppercase;letter-spacing:.05em}
+.sec a{color:var(--verde-esc);cursor:pointer;margin-left:8px;text-decoration:underline}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid #c9ced4;background:#fff;border-radius:999px;padding:4px 11px;cursor:pointer;font-size:12px;font-weight:700;color:#333;display:inline-flex;gap:6px;align-items:center;user-select:none}
+.chip.on{background:var(--verde);border-color:var(--verde);color:#fff}
+.chip i{font-style:normal;font-size:10px;background:rgba(0,0,0,.12);border-radius:8px;padding:0 6px}
+.chip:not(.on) i{background:#eef1f3;color:#555}
+.chip.mont{background:#f4f6f5;border-color:#aab3ad}
+.chip.mont.on{background:var(--preto);border-color:var(--preto)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0 10px}
+.kpi{border:1px solid var(--borda);border-radius:8px;padding:10px 14px;background:#fff}
+.kpi b{display:block;font-size:30px;line-height:1.1}
+.kpi span{font-size:10px;text-transform:uppercase;color:var(--cinza);font-weight:700}
+.kpi.sel{border:2px solid var(--verde);background:var(--verde-claro)}.kpi.sel b{color:var(--verde-esc)}
+.kpi.ja b{color:var(--ok)}.kpi.op b{color:var(--nao)}
+.kpi.cob{background:var(--verde);border-color:var(--verde);color:#fff}.kpi.cob span{color:#d6f2e3}
+.curvas{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.cv{border:1px solid var(--borda);border-radius:8px;padding:10px 14px;background:#fff;cursor:pointer}
+.cv.on{outline:2px solid var(--verde)}
+.cv h4{margin:0;display:flex;justify-content:space-between;font-size:11px;font-weight:800;text-transform:uppercase}
+.cv .pc{font-size:26px;font-weight:800;margin:4px 0}
+.bar{height:5px;background:#e8ebee;border-radius:3px;overflow:hidden}.bar div{height:100%}
+.cv small{display:block;color:var(--cinza);font-size:10px;margin-top:4px}
+.tools{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
+.tools .tit{font-weight:800;margin-right:auto}
+.tbl{max-height:560px;overflow:auto;border:1px solid var(--borda);border-radius:6px}
+table{border-collapse:collapse;width:100%}
+th{position:sticky;top:0;background:var(--verde);color:#fff;text-align:left;font-size:10px;text-transform:uppercase;padding:7px 8px;cursor:pointer;white-space:nowrap;z-index:1}
+td{padding:6px 8px;border-bottom:1px solid #edf0f2;vertical-align:middle}
+tr:hover td{background:#f7fbf9}
+td.n,th.n{text-align:right}
+.badge{display:inline-block;min-width:26px;text-align:center;border-radius:4px;color:#fff;font-weight:800;font-size:11px;padding:1px 6px}
+.cAA{background:var(--aa)}.cA{background:var(--a)}.cB{background:var(--b)}.cC{background:var(--c)}.cL{background:var(--l)}
+.st{border-radius:4px;font-size:11px;font-weight:800;padding:2px 8px;color:#fff;white-space:nowrap}
+.st.s{background:var(--ok)}.st.n{background:var(--nao)}
+.vazio{padding:40px;text-align:center;color:var(--cinza)}
+.dd{position:relative}
+.dd ul{position:absolute;z-index:20;top:100%;left:0;min-width:420px;max-height:320px;overflow:auto;background:#fff;border:1px solid #c9ced4;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.15);margin:2px 0 0;padding:0;list-style:none}
+.dd li{padding:6px 10px;cursor:pointer;border-bottom:1px solid #f0f2f4}.dd li:hover{background:var(--verde-claro)}
+.dd li small{color:var(--cinza)}
+.pill{background:var(--verde-claro);color:var(--verde-esc);border-radius:6px;padding:4px 8px;font-weight:700}
+.link{color:var(--verde-esc);cursor:pointer;font-weight:700;text-decoration:underline}
+@media(max-width:800px){.kpis,.curvas{grid-template-columns:repeat(2,1fr)}.dd ul{min-width:260px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Cliente <span>360</span> · Eurotécnica</h1>
+  <small>Estudo de cobertura por caixa de câmbio e curva — Supervisão de Vendas · Região Nordeste</small>
+  <small id="hdrCli"></small>
+</header>
+<div class="painel">
+  <div class="row">
+    <button class="btn sol" id="btnImp">📥 Importar Planilha de Vendas</button>
+    <input type="file" id="fileImp" accept=".xlsx,.xls" hidden>
+    <div><label class="f">Representante</label><br><select id="selRep" style="min-width:220px"></select></div>
+    <div class="dd"><label class="f">Cliente</label><br>
+      <input type="text" id="inpCli" placeholder="Buscar por nome, código ou cidade…" style="min-width:340px" autocomplete="off">
+      <ul id="ddCli" hidden></ul></div>
+    <div><label class="f">Período</label><br><select id="selPer"></select></div>
+    <span class="pill" id="infoBase"></span>
+  </div>
+
+  <div class="tabs"><div class="tab on" data-v="cli">🎯 Cliente 360</div><div class="tab" data-v="cx">📦 Caixa × Clientes</div></div>
+
+  <div class="sec">Montadora <a id="limpM">LIMPAR</a></div><div class="chips" id="chM"></div>
+  <div class="sec">Caixas (selecione uma ou mais) <a id="selTodas">SELECIONAR TODAS</a><a id="limpC">LIMPAR</a></div>
+  <div class="chips" id="chC"></div>
+  <div class="sec">Grupo de peça (opcional) <a id="limpG">LIMPAR</a></div><div class="chips" id="chG"></div>
+
+  <div id="vCli">
+    <div class="kpis">
+      <div class="kpi sel"><b id="kSel">0</b><span>Códigos na seleção</span></div>
+      <div class="kpi ja"><b id="kJa">0</b><span>Já compra</span></div>
+      <div class="kpi op"><b id="kOp">0</b><span>Oportunidade (não compra)</span></div>
+      <div class="kpi cob"><b id="kCob">0%</b><span>Cobertura geral</span></div>
+    </div>
+    <div class="curvas" id="curvas"></div>
+    <div class="tools">
+      <span class="tit">Produtos <span id="nProd" style="color:var(--cinza);font-weight:400"></span></span>
+      <input type="text" id="busca" placeholder="Buscar código ou descrição…" style="width:240px">
+      <select id="selSt"><option value="">Todos os status</option><option value="n">Só oportunidades (não compra)</option><option value="s">Só o que já compra</option></select>
+      <button class="btn" id="btnExp">⬇ Exportar</button>
+    </div>
+    <div class="tbl"><table><thead id="thP"></thead><tbody id="tbP"></tbody></table></div>
+  </div>
+
+  <div id="vCx" hidden>
+    <div class="tools"><span class="tit">Clientes que compram as peças das caixas selecionadas <span id="nCx" style="color:var(--cinza);font-weight:400"></span></span>
+      <input type="text" id="buscaCx" placeholder="Buscar cliente / cidade…" style="width:240px">
+      <button class="btn" id="btnExpCx">⬇ Exportar</button></div>
+    <div class="tbl"><table><thead id="thX"></thead><tbody id="tbX"></tbody></table></div>
+  </div>
+</div>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+let P = DATA.P, CX = DATA.CX, C = DATA.C, R = DATA.R, V = DATA.V;
+// P: [cod,desc,curva,grupo,linha,aplicacao,codPadreCicero,codOriginal,preco,vendaSuspensa]
+const $ = id => document.getElementById(id);
+const fmtR = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fmtN = v => v.toLocaleString('pt-BR');
+const mesNome = ym => { const [y,m]=ym.split('-'); return ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][+m-1]+'/'+y; };
+const serial2str = n => { const d=new Date(Date.UTC(1899,11,30)+n*864e5); return d.toLocaleDateString('pt-BR',{timeZone:'UTC'}); };
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ordCurva = {AA:0,A:1,B:2,C:3,'Lançamento':4};
+const cls = c => c==='Lançamento'?'cL':'c'+c;
+
+const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli' };
+
+function indexar(){
+  // vendas por cliente: Map cli -> Map part -> {q,v,last}   (respeita o período)
+  S._idx = new Map();
+  for(const [ci,pi,ym,q,v,last] of V){
+    if(S.per && ym!==S.per) continue;
+    let m = S._idx.get(ci); if(!m){ m=new Map(); S._idx.set(ci,m); }
+    let x = m.get(pi); if(!x){ x={q:0,v:0,last:0}; m.set(pi,x); }
+    x.q+=q; x.v+=v; if(last>x.last) x.last=last;
+  }
+}
+const comprou = x => x && x.q>0 && x.v>0;
+
+function iniciar(){
+  document.title='Cliente 360 · Eurotécnica';
+  const meses=[...new Set(V.map(v=>v[2]))].sort();
+  $('selPer').innerHTML='<option value="">Todos</option>'+meses.map(m=>`<option value="${m}">${mesNome(m)}</option>`).join('');
+  $('selRep').innerHTML='<option value="-1">Todos os representantes</option>'+R.map((r,i)=>[r,i]).sort((a,b)=>a[0].localeCompare(b[0])).map(([r,i])=>`<option value="${i}">${esc(r)}</option>`).join('');
+  const nv=new Set(V.map(v=>v[0])).size;
+  $('infoBase').textContent=`${fmtN(P.length)} códigos · ${CX.length} caixas · ${fmtN(C.length)} clientes · ${fmtN(nv)} compraram caixa`;
+  indexar(); desenharChips(); desenhar();
+}
+
+function caixasVisiveis(){ return CX.filter(c=>!S.mont.size||S.mont.has(c.m)); }
+function selecaoPartes(){
+  let cxs = S.cx.size ? CX.filter(c=>S.cx.has(c.n)) : caixasVisiveis();
+  const set=new Set(); cxs.forEach(c=>c.p.forEach(i=>set.add(i)));
+  return [...set].filter(i=>!S.grp.size||S.grp.has(P[i][3]||'Outros'));
+}
+function cobCaixa(c){ // % do cliente nessa caixa
+  if(S.cli===null) return null; const m=S._idx.get(S.cli)||new Map();
+  let n=0; c.p.forEach(i=>{ if(comprou(m.get(i))) n++; }); return Math.round(100*n/c.p.length);
+}
+
+function desenharChips(){
+  const monts=[...new Set(CX.map(c=>c.m))];
+  $('chM').innerHTML=monts.map(m=>`<span class="chip mont ${S.mont.has(m)?'on':''}" data-m="${esc(m)}">${esc(m)}</span>`).join('');
+  $('chC').innerHTML=caixasVisiveis().map(c=>{ const p=cobCaixa(c);
+    return `<span class="chip ${S.cx.has(c.n)?'on':''}" data-c="${esc(c.n)}">${esc(c.n)}${p!==null?`<i>${p}%</i>`:`<i>${c.p.length}</i>`}</span>`; }).join('');
+  const gr={}; CX.forEach(c=>c.p.forEach(i=>{const g=P[i][3]||'Outros'; gr[g]=(gr[g]||0)+1;}));
+  $('chG').innerHTML=Object.keys(gr).sort().map(g=>`<span class="chip ${S.grp.has(g)?'on':''}" data-g="${esc(g)}">${esc(g)}</span>`).join('');
+}
+
+function desenhar(){
+  const cl=S.cli!==null?C[S.cli]:null;
+  $('hdrCli').innerHTML=cl?`Cliente: <b>${esc(cl[1])} (${esc(cl[0])})</b> · ${esc(cl[2])}-${esc(cl[3])} · Representante: <b>${esc(R[cl[4]])}</b>`:'Escolha um cliente para ver a cobertura das caixas.';
+  $('vCli').hidden=S.view!=='cli'; $('vCx').hidden=S.view!=='cx';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===S.view));
+  if(S.view==='cli') desenharCliente(); else desenharCaixaCliente();
+}
+
+function desenharCliente(){
+  const m=S.cli!==null?(S._idx.get(S.cli)||new Map()):new Map();
+  const base=selecaoPartes();
+  const ja=base.filter(i=>comprou(m.get(i)));
+  $('kSel').textContent=fmtN(base.length); $('kJa').textContent=S.cli!==null?fmtN(ja.length):'—';
+  $('kOp').textContent=S.cli!==null?fmtN(base.length-ja.length):'—';
+  $('kCob').textContent=S.cli!==null&&base.length?(100*ja.length/base.length).toFixed(1)+'%':'—';
+  const grupos=[['AA / A',['AA','A'],'--aa'],['B',['B'],'--b'],['C',['C'],'--c'],['Lançamentos',['Lançamento'],'--l']];
+  $('curvas').innerHTML=grupos.map(([nome,cs,cor])=>{
+    const t=base.filter(i=>cs.includes(P[i][2])), j=t.filter(i=>comprou(m.get(i)));
+    const pc=t.length&&S.cli!==null?100*j.length/t.length:0;
+    return `<div class="cv ${S.curva===nome?'on':''}" data-cv="${nome}"><h4><span>Curva ${nome}</span><span>${fmtN(t.length)} cód.</span></h4>
+      <div class="pc" style="color:var(${cor})">${S.cli!==null?pc.toFixed(1)+'%':'—'}</div>
+      <div class="bar"><div style="width:${pc}%;background:var(${cor})"></div></div><small>${j.length} de ${t.length} códigos comprados</small></div>`;}).join('');
+  let lista=base.slice();
+  const cvSel=grupos.find(g=>g[0]===S.curva); if(cvSel) lista=lista.filter(i=>cvSel[1].includes(P[i][2]));
+  if(S.st) lista=lista.filter(i=>(comprou(m.get(i))?'s':'n')===S.st);
+  const q=S.busca.trim().toLowerCase();
+  if(q) lista=lista.filter(i=>(P[i][0]+' '+P[i][1]+' '+P[i][6]+' '+P[i][7]).toLowerCase().includes(q));
+  const cxDe=i=>CX.filter(c=>c.p.includes(i)&&(!S.cx.size||S.cx.has(c.n))).map(c=>c.n).join(', ');
+  const val=(i,k)=>{ const x=m.get(i)||{q:0,v:0,last:0};
+    return {cod:P[i][0],desc:P[i][1],cx:cxDe(i),grupo:P[i][3],curva:ordCurva[P[i][2]]??9,st:comprou(x)?1:0,q:x.q,v:x.v,last:x.last,pc:P[i][6]}[k]; };
+  const [k,d]=S.sortP; lista.sort((a,b)=>{const x=val(a,k),y=val(b,k); return (x>y?1:x<y?-1:0)*d||(P[a][0]>P[b][0]?1:-1);});
+  S._rowsP=lista;
+  const cols=[['cod','Código'],['desc','Produto'],['cx','Caixa(s)'],['grupo','Grupo'],['pc','Cód. Padre Cícero'],['curva','Curva'],['st','Status'],['q','Qtd comprada','n'],['v','Valor','n'],['last','Última compra']];
+  $('thP').innerHTML='<tr>'+cols.map(([k,t,n])=>`<th class="${n||''}" data-s="${k}">${t}${S.sortP[0]===k?(S.sortP[1]>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
+  $('nProd').textContent='('+fmtN(lista.length)+')';
+  $('tbP').innerHTML=lista.length?lista.slice(0,1500).map(i=>{const x=m.get(i), ok=comprou(x), p=P[i];
+    return `<tr><td>${esc(p[0])}</td><td>${esc(p[1])}${p[9]?' <small style="color:var(--nao)">(venda suspensa)</small>':''}</td><td>${esc(cxDe(i))}</td><td>${esc(p[3])}</td><td>${esc(p[6])}</td>
+      <td><span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':p[2]}</span></td>
+      <td>${S.cli===null?'—':`<span class="st ${ok?'s':'n'}">${ok?'Compra':'Não compra'}</span>`}</td>
+      <td class="n">${ok?fmtN(x.q):''}</td><td class="n">${ok?fmtR(x.v):''}</td><td>${ok&&x.last?serial2str(x.last):''}</td></tr>`;}).join('')
+    :'<tr><td colspan="10" class="vazio">Nenhum produto na seleção.</td></tr>';
+}
+
+function desenharCaixaCliente(){
+  const base=new Set(selecaoPartes()); const q=$('buscaCx').value.trim().toLowerCase();
+  const linhas=[];
+  for(const [ci,m] of S._idx){
+    if(S.rep>=0 && C[ci][4]!==S.rep) continue;
+    let n=0,v=0,last=0,qt=0; for(const [pi,x] of m){ if(base.has(pi)&&comprou(x)){ n++; v+=x.v; qt+=x.q; if(x.last>last) last=x.last; } }
+    if(!n) continue; const c=C[ci];
+    if(q&&!(c[1]+' '+c[0]+' '+c[2]).toLowerCase().includes(q)) continue;
+    linhas.push({ci,nome:c[1],cod:c[0],cid:c[2]+'-'+c[3],rep:R[c[4]],n,tot:base.size,cob:100*n/base.size,v,last});
+  }
+  const [k,d]=S.sortX; linhas.sort((a,b)=>(a[k]>b[k]?1:a[k]<b[k]?-1:0)*d);
+  S._rowsX=linhas; $('nCx').textContent='('+fmtN(linhas.length)+' clientes · '+fmtN(base.size)+' códigos na seleção)';
+  const cols=[['nome','Cliente'],['cid','Cidade'],['rep','Representante'],['n','Códigos comprados','n'],['cob','Cobertura','n'],['v','Valor','n'],['last','Última compra']];
+  $('thX').innerHTML='<tr>'+cols.map(([k,t,n])=>`<th class="${n||''}" data-s="${k}">${t}${S.sortX[0]===k?(S.sortX[1]>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
+  $('tbX').innerHTML=linhas.length?linhas.slice(0,1500).map(l=>`<tr><td><span class="link" data-ci="${l.ci}">${esc(l.nome)}</span> <small style="color:var(--cinza)">${esc(l.cod)}</small></td><td>${esc(l.cid)}</td><td>${esc(l.rep)}</td>
+    <td class="n">${l.n} / ${l.tot}</td><td class="n"><b>${l.cob.toFixed(1)}%</b></td><td class="n">${fmtR(l.v)}</td><td>${l.last?serial2str(l.last):''}</td></tr>`).join('')
+    :'<tr><td colspan="7" class="vazio">Nenhum cliente comprou peças desta seleção no período.</td></tr>';
+}
+
+// ---- eventos
+function toggle(set,v){ set.has(v)?set.delete(v):set.add(v); }
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-m],[data-c],[data-g],[data-cv],[data-s],[data-v],[data-ci]'); if(!t){ $('ddCli').hidden=true; return; }
+  if(t.dataset.m!==undefined){ toggle(S.mont,t.dataset.m); S.cx=new Set([...S.cx].filter(n=>caixasVisiveis().some(c=>c.n===n))); desenharChips(); }
+  else if(t.dataset.c!==undefined){ toggle(S.cx,t.dataset.c); desenharChips(); }
+  else if(t.dataset.g!==undefined){ toggle(S.grp,t.dataset.g); desenharChips(); }
+  else if(t.dataset.cv!==undefined){ S.curva=S.curva===t.dataset.cv?null:t.dataset.cv; }
+  else if(t.dataset.v!==undefined){ S.view=t.dataset.v; }
+  else if(t.dataset.ci!==undefined){ escolherCliente(+t.dataset.ci); S.view='cli'; }
+  else if(t.dataset.s!==undefined){ const key=S.view==='cli'?'sortP':'sortX'; S[key]=[t.dataset.s,S[key][0]===t.dataset.s?-S[key][1]:1]; }
+  desenhar();
+});
+$('limpM').onclick=()=>{S.mont.clear();desenharChips();desenhar();};
+$('limpC').onclick=()=>{S.cx.clear();desenharChips();desenhar();};
+$('limpG').onclick=()=>{S.grp.clear();desenharChips();desenhar();};
+$('selTodas').onclick=()=>{caixasVisiveis().forEach(c=>S.cx.add(c.n));desenharChips();desenhar();};
+$('selPer').onchange=e=>{S.per=e.target.value;indexar();desenharChips();desenhar();};
+$('selRep').onchange=e=>{S.rep=+e.target.value; if(S.cli!==null&&S.rep>=0&&C[S.cli][4]!==S.rep) S.cli=null; $('inpCli').value=''; indexar(); desenharChips(); desenhar();};
+$('busca').oninput=e=>{S.busca=e.target.value;desenhar();};
+$('buscaCx').oninput=desenhar;
+$('selSt').onchange=e=>{S.st=e.target.value;desenhar();};
+
+function escolherCliente(ci){ S.cli=ci; $('inpCli').value=C[ci][1]; $('ddCli').hidden=true; desenharChips(); desenhar(); }
+function listaCli(){
+  const q=$('inpCli').value.trim().toLowerCase();
+  const ul=$('ddCli'); let a=C.map((c,i)=>[c,i]).filter(([c])=>S.rep<0||c[4]===S.rep);
+  if(q) a=a.filter(([c])=>(c[1]+' '+c[0]+' '+c[2]).toLowerCase().includes(q));
+  const nCompra=ci=>S._idx.has(ci)?1:0;
+  a.sort((x,y)=>nCompra(y[1])-nCompra(x[1])||x[0][1].localeCompare(y[0][1]));
+  ul.innerHTML=a.slice(0,60).map(([c,i])=>`<li data-pick="${i}">${esc(c[1])} <small>· ${esc(c[0])} · ${esc(c[2])}-${esc(c[3])}</small></li>`).join('')||'<li><small>Nenhum cliente encontrado</small></li>';
+  ul.hidden=false;
+}
+$('inpCli').oninput=listaCli; $('inpCli').onfocus=listaCli;
+$('ddCli').addEventListener('click',e=>{ const li=e.target.closest('[data-pick]'); if(li){ e.stopPropagation(); escolherCliente(+li.dataset.pick); } });
+
+// ---- exportar
+function baixar(linhas,cab,nome){
+  const ws=XLSX.utils.aoa_to_sheet([cab,...linhas]); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Dados'); XLSX.writeFile(wb,nome);
+}
+$('btnExp').onclick=()=>{
+  const m=S.cli!==null?(S._idx.get(S.cli)||new Map()):new Map();
+  baixar(S._rowsP.map(i=>{const x=m.get(i),ok=comprou(x),p=P[i];return [p[0],p[1],p[3],p[6],p[2],S.cli===null?'':ok?'Compra':'Não compra',ok?x.q:'',ok?x.v:'',ok&&x.last?serial2str(x.last):''];}),
+    ['Código','Produto','Grupo','Cód. Padre Cícero','Curva','Status','Qtd comprada','Valor','Última compra'],'cliente360_'+(S.cli!==null?C[S.cli][0]:'catalogo')+'.xlsx');
+};
+$('btnExpCx').onclick=()=>baixar(S._rowsX.map(l=>[l.nome,l.cod,l.cid,l.rep,l.n,l.tot,+l.cob.toFixed(1),l.v,l.last?serial2str(l.last):'']),['Cliente','Código','Cidade','Representante','Códigos comprados','Códigos na seleção','Cobertura %','Valor','Última compra'],'caixa_x_clientes.xlsx');
+
+// ---- importar nova planilha de vendas (mesmo layout "Base Dados")
+$('btnImp').onclick=()=>$('fileImp').click();
+$('fileImp').onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true}); const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true});
+    const h=rows[0]; if(h[16]!=='Cliente'||h[23]!=='Nº peça fabricante') throw new Error('Layout diferente da planilha "Base Dados" de vendas.');
+    const pidx=new Map(P.map((p,i)=>[p[0],i])); const cidx=new Map(C.map((c,i)=>[c[0],i])); const ridx=new Map(R.map((r,i)=>[r,i]));
+    const agg=new Map(); let usadas=0;
+    for(const r of rows.slice(1)){
+      if(!r[16]) continue; let d=r[15]; d=d instanceof Date?d:(typeof d==='number'?new Date(Date.UTC(1899,11,30)+d*864e5):null); if(!d) continue;
+      const rep=String(r[22]||'SEM VENDEDOR').trim(); if(!ridx.has(rep)){ridx.set(rep,R.length);R.push(rep);}
+      const cod=String(r[16]).trim(); if(!cidx.has(cod)){cidx.set(cod,C.length);C.push([cod,String(r[17]||'').trim(),String(r[25]||'').trim(),String(r[27]||'').trim(),ridx.get(rep)]);}
+      const pi=pidx.get(String(r[23]||'').trim()); if(pi===undefined) continue; usadas++;
+      const ym=d.toISOString().slice(0,7), k=cidx.get(cod)+'|'+pi+'|'+ym, a=agg.get(k)||[cidx.get(cod),pi,ym,0,0,0];
+      a[3]+=+r[3]||0; a[4]+=+r[14]||0; a[5]=Math.max(a[5],Math.round((d-Date.UTC(1899,11,30))/864e5)); agg.set(k,a);
+    }
+    V=[...agg.values()]; S.cli=null; $('inpCli').value=''; iniciar();
+    alert(`Planilha importada: ${usadas} linhas de peças de caixa.`);
+  }catch(err){ alert('Não consegui importar: '+err.message); }
+  e.target.value='';
+};
+iniciar();
+</script>
+</body>
+</html>
