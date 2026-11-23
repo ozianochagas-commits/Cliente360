@@ -257,14 +257,14 @@ function desenharCliente(){
     return {cod:P[i][0],desc:P[i][1],cx:cxDe(i),grupo:P[i][3],curva:ordCurva[P[i][2]]??9,st:comprou(x)?1:0,q:x.q,v:x.v,last:x.last,pc:P[i][6]}[k]; };
   const [k,d]=S.sortP; lista.sort((a,b)=>{const x=val(a,k),y=val(b,k); return (x>y?1:x<y?-1:0)*d||(P[a][0]>P[b][0]?1:-1);});
   S._rowsP=lista;
-  const cols=[['cod','Código'],['desc','Produto'],['cx','Caixa(s)'],['grupo','Grupo'],['pc','Cód. Padre Cícero'],['curva','Curva'],['st','Status'],['q','Qtd comprada','n'],['v','Valor','n'],['last','Última compra']];
+  const cols=[['cod','Código'],['desc','Produto'],['cx','Caixa(s)'],['grupo','Grupo'],['pc','Cód. Padre Cícero'],['curva','Curva'],['st','Status'],['q','Qtd comprada','n'],['last','Última compra']];
   $('thP').innerHTML='<tr>'+cols.map(([k,t,n])=>`<th class="${n||''}" data-s="${k}">${t}${S.sortP[0]===k?(S.sortP[1]>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
   $('nProd').textContent='('+fmtN(lista.length)+')';
   $('tbP').innerHTML=lista.length?lista.slice(0,1500).map(i=>{const x=m.get(i), ok=comprou(x), p=P[i];
     return `<tr><td>${esc(p[0])}</td><td>${esc(p[1])}${p[9]?' <small style="color:var(--nao)">(venda suspensa)</small>':''}</td><td>${esc(cxDe(i))}</td><td>${esc(p[3])}</td><td>${esc(p[6])}</td>
       <td><span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':p[2]}</span></td>
       <td>${S.cli===null?'—':`<span class="st ${ok?'s':'n'}">${ok?'Compra':'Não compra'}</span>`}</td>
-      <td class="n">${ok?fmtN(x.q):''}</td><td class="n">${ok?fmtR(x.v):''}</td><td>${ok&&x.last?serial2str(x.last):''}</td></tr>`;}).join('')
+      <td class="n">${ok?fmtN(x.q):''}</td><td>${ok&&x.last?serial2str(x.last):''}</td></tr>`;}).join('')
     :'<tr><td colspan="10" class="vazio">Nenhum produto na seleção.</td></tr>';
 }
 
@@ -289,14 +289,14 @@ function desenharDist(){
   const [k,dir]=S.dSort; lista.sort((a,b)=>{const x=val(a,k),y=val(b,k); return (x>y?1:x<y?-1:0)*dir||(P[a][0]>P[b][0]?1:-1);});
   S._rowsD=lista;
   const cols=[['cod','Código fábrica'],['desc','Produto'],['cx','Caixa(s)'],['grupo','Grupo'],['curva','Curva'],['st','Distribuidor'],['dcod','Cód. no distribuidor']];
-  if(vend) cols.push(['q','Qtd vendida','n'],['v','Valor vendido','n'],['cl','Clientes','n']);
+  if(vend) cols.push(['q','Qtd vendida','n'],['cl','Clientes','n']);
   $('dTh').innerHTML='<tr>'+cols.map(([c,t,n])=>`<th class="${n||''}" data-ds="${c}">${t}${S.dSort[0]===c?(S.dSort[1]>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
   $('dNProd').textContent='('+fmtN(lista.length)+')';
   $('dTb').innerHTML=lista.length?lista.slice(0,1500).map(i=>{const p=P[i], t=tem(i), y=vp(i);
     return `<tr><td>${esc(p[0])}</td><td>${esc(p[1])}${p[9]?' <small style="color:var(--nao)">(venda suspensa)</small>':''}</td><td>${esc(cxDe(i))}</td><td>${esc(p[3])}</td>
       <td><span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':p[2]}</span></td>
       <td><span class="st ${t?'s':'n'}">${t?'Tem':'Não tem'}</span></td><td>${t?esc(d.c[i][0]):''}</td>
-      ${vend?`<td class="n">${y.q>0?fmtN(y.q):''}</td><td class="n">${y.v>0?fmtR(y.v):''}</td><td class="n">${y.cl.size||''}</td>`:''}</tr>`;}).join('')
+      ${vend?`<td class="n">${y.q>0?fmtN(y.q):''}</td><td class="n">${y.cl.size||''}</td>`:''}</tr>`;}).join('')
     :'<tr><td colspan="10" class="vazio">Nenhum produto na seleção.</td></tr>';
 }
 
@@ -312,10 +312,10 @@ function desenharCaixaCliente(){
   }
   const [k,d]=S.sortX; linhas.sort((a,b)=>(a[k]>b[k]?1:a[k]<b[k]?-1:0)*d);
   S._rowsX=linhas; $('nCx').textContent='('+fmtN(linhas.length)+' clientes · '+fmtN(base.size)+' códigos na seleção)';
-  const cols=[['nome','Cliente'],['cid','Cidade'],['rep','Representante'],['n','Códigos comprados','n'],['cob','Cobertura','n'],['v','Valor','n'],['last','Última compra']];
+  const cols=[['nome','Cliente'],['cid','Cidade'],['rep','Representante'],['n','Códigos comprados','n'],['cob','Cobertura','n'],['last','Última compra']];
   $('thX').innerHTML='<tr>'+cols.map(([k,t,n])=>`<th class="${n||''}" data-s="${k}">${t}${S.sortX[0]===k?(S.sortX[1]>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
   $('tbX').innerHTML=linhas.length?linhas.slice(0,1500).map(l=>`<tr><td><span class="link" data-ci="${l.ci}">${esc(l.nome)}</span> <small style="color:var(--cinza)">${esc(l.cod)}</small></td><td>${esc(l.cid)}</td><td>${esc(l.rep)}</td>
-    <td class="n">${l.n} / ${l.tot}</td><td class="n"><b>${l.cob.toFixed(1)}%</b></td><td class="n">${fmtR(l.v)}</td><td>${l.last?serial2str(l.last):''}</td></tr>`).join('')
+    <td class="n">${l.n} / ${l.tot}</td><td class="n"><b>${l.cob.toFixed(1)}%</b></td><td>${l.last?serial2str(l.last):''}</td></tr>`).join('')
     :'<tr><td colspan="7" class="vazio">Nenhum cliente comprou peças desta seleção no período.</td></tr>';
 }
 
@@ -344,8 +344,8 @@ $('selDist').onchange=e=>{S.dist=+e.target.value;desenharChips();desenhar();};
 $('dBusca').oninput=e=>{S.dBusca=e.target.value;desenhar();};
 $('dSelSt').onchange=e=>{S.dSt=e.target.value;desenhar();};
 $('dBtnExp').onclick=()=>{ const d=D[S.dist]; const vp=i=>S._vp.get(i)||{q:0,v:0,cl:new Set()};
-  baixar(S._rowsD.map(i=>{const p=P[i],t=d.c[i]!==undefined,y=vp(i);return [p[0],p[1],p[3],p[2],t?'Tem':'Não tem',t?d.c[i][0]:'',d.vendas?y.q:'',d.vendas?y.v:'',d.vendas?y.cl.size:''];}),
-  ['Código fábrica','Produto','Grupo','Curva','Distribuidor','Cód. no distribuidor','Qtd vendida','Valor vendido','Clientes'],'fabrica_x_'+d.n.replace(/\s+/g,'_')+'.xlsx'); };
+  baixar(S._rowsD.map(i=>{const p=P[i],t=d.c[i]!==undefined,y=vp(i);return [p[0],p[1],p[3],p[2],t?'Tem':'Não tem',t?d.c[i][0]:'',d.vendas?y.q:'',d.vendas?y.cl.size:''];}),
+  ['Código fábrica','Produto','Grupo','Curva','Distribuidor','Cód. no distribuidor','Qtd vendida','Clientes'],'fabrica_x_'+d.n.replace(/\s+/g,'_')+'.xlsx'); };
 // importar cadastro de outro distribuidor: coluna A = Cód. Eurotécnica, coluna B = Cód. do distribuidor
 $('btnImpDist').onclick=()=>$('fileDist').click();
 $('fileDist').onchange=async e=>{
@@ -386,10 +386,10 @@ function baixar(linhas,cab,nome){
 }
 $('btnExp').onclick=()=>{
   const m=S.cli!==null?(S._idx.get(S.cli)||new Map()):new Map();
-  baixar(S._rowsP.map(i=>{const x=m.get(i),ok=comprou(x),p=P[i];return [p[0],p[1],p[3],p[6],p[2],S.cli===null?'':ok?'Compra':'Não compra',ok?x.q:'',ok?x.v:'',ok&&x.last?serial2str(x.last):''];}),
-    ['Código','Produto','Grupo','Cód. Padre Cícero','Curva','Status','Qtd comprada','Valor','Última compra'],'cliente360_'+(S.cli!==null?C[S.cli][0]:'catalogo')+'.xlsx');
+  baixar(S._rowsP.map(i=>{const x=m.get(i),ok=comprou(x),p=P[i];return [p[0],p[1],p[3],p[6],p[2],S.cli===null?'':ok?'Compra':'Não compra',ok?x.q:'',ok&&x.last?serial2str(x.last):''];}),
+    ['Código','Produto','Grupo','Cód. Padre Cícero','Curva','Status','Qtd comprada','Última compra'],'cliente360_'+(S.cli!==null?C[S.cli][0]:'catalogo')+'.xlsx');
 };
-$('btnExpCx').onclick=()=>baixar(S._rowsX.map(l=>[l.nome,l.cod,l.cid,l.rep,l.n,l.tot,+l.cob.toFixed(1),l.v,l.last?serial2str(l.last):'']),['Cliente','Código','Cidade','Representante','Códigos comprados','Códigos na seleção','Cobertura %','Valor','Última compra'],'caixa_x_clientes.xlsx');
+$('btnExpCx').onclick=()=>baixar(S._rowsX.map(l=>[l.nome,l.cod,l.cid,l.rep,l.n,l.tot,+l.cob.toFixed(1),l.last?serial2str(l.last):'']),['Cliente','Código','Cidade','Representante','Códigos comprados','Códigos na seleção','Cobertura %','Última compra'],'caixa_x_clientes.xlsx');
 
 // ---- importar nova planilha de vendas (mesmo layout "Base Dados")
 $('btnImp').onclick=()=>$('fileImp').click();
