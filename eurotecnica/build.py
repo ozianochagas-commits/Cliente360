@@ -70,7 +70,12 @@ for r in rows[1:]:
     k = (ci, pidx[cod], d.strftime('%Y-%m'))
     a = agg[k]; a[0] += r[3] or 0; a[1] += r[14] or 0; a[2] = max(a[2], (d - datetime.datetime(1899, 12, 30)).days)
 V = [[k[0], k[1], k[2], round(a[0], 3), round(a[1], 2), a[2]] for k, a in agg.items()]
-data = {'P': parts, 'CX': caixas, 'C': cli, 'R': reps, 'V': V}
+# distribuidores: cadastro (cód. da fábrica -> cód. do distribuidor). Só o Padre Cícero tem cadastro na planilha.
+dpc = {}
+for cod, (c, desc, sit) in pc.items():
+    if cod in pidx: dpc[pidx[cod]] = [c, desc, sit]
+D = [{'n': 'Padre Cícero', 'vendas': 1, 'c': dpc}]
+data = {'P': parts, 'CX': caixas, 'C': cli, 'R': reps, 'V': V, 'D': D}
 tpl = open(os.path.join(here, 'template.html'), encoding='utf-8').read()
 out = tpl.replace('/*__DATA__*/null', json.dumps(data, ensure_ascii=False, separators=(',', ':')))
 open(os.path.join(here, 'index.html'), 'w', encoding='utf-8').write(out)

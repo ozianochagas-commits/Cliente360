@@ -12,9 +12,15 @@
   --ok:#0a8f4a; --nao:#c0392b; --aa:#006e38; --a:#009a4e; --b:#d98e04; --c:#5b6770; --l:#7a3fb0;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--fundo);color:var(--preto);font:13px/1.35 "Segoe UI",system-ui,Arial,sans-serif}
 .wrap{max-width:1240px;margin:0 auto;padding:12px}
-header{background:var(--preto);color:#fff;border-radius:10px 10px 0 0;padding:14px 18px;border-bottom:4px solid var(--verde)}
+header{border-radius:0 0 0 0!important}
+.menuTop{background:var(--preto);border-radius:10px 10px 0 0;padding:12px 18px 0}
+#selVisao{appearance:none;-webkit-appearance:none;background:#1c1c1c url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center;color:#fff;border:2px solid var(--verde);border-radius:10px;font-size:16px;font-weight:800;padding:9px 40px 9px 14px;min-width:300px;cursor:pointer}
+#selVisao:focus{outline:none;box-shadow:0 0 0 3px rgba(0,154,78,.35)}
+#selVisao option{background:#fff;color:#111;font-weight:600}
+header{background:var(--preto);color:#fff;padding:14px 18px;border-bottom:4px solid var(--verde)}
 header h1{margin:0;font-size:22px;font-weight:800}
 header h1 span{color:var(--verde)}
 header small{display:block;color:#b8bec6;margin-top:2px}
@@ -78,6 +84,9 @@ td.n,th.n{text-align:right}
 </head>
 <body>
 <div class="wrap">
+<div class="menuTop"><select id="selVisao" aria-label="Visão">
+  <option value="cli">🎯&nbsp; Fábrica × Cliente</option>
+  <option value="dist">🏭&nbsp; Fábrica × Distribuidor</option></select></div>
 <header>
   <h1>Cliente <span>360</span> · Eurotécnica</h1>
   <small>Estudo de cobertura por caixa de câmbio e curva — Supervisão de Vendas · Região Nordeste</small>
@@ -87,15 +96,21 @@ td.n,th.n{text-align:right}
   <div class="row">
     <button class="btn sol" id="btnImp">📥 Importar Planilha de Vendas</button>
     <input type="file" id="fileImp" accept=".xlsx,.xls" hidden>
-    <div><label class="f">Representante</label><br><select id="selRep" style="min-width:220px"></select></div>
-    <div class="dd"><label class="f">Cliente</label><br>
-      <input type="text" id="inpCli" placeholder="Buscar por nome, código ou cidade…" style="min-width:340px" autocomplete="off">
-      <ul id="ddCli" hidden></ul></div>
+    <div id="gCli" class="row" style="margin:0">
+      <div><label class="f">Representante</label><br><select id="selRep" style="min-width:220px"></select></div>
+      <div class="dd"><label class="f">Cliente</label><br>
+        <input type="text" id="inpCli" placeholder="Buscar por nome, código ou cidade…" style="min-width:340px" autocomplete="off">
+        <ul id="ddCli" hidden></ul></div>
+    </div>
+    <div id="gDist" class="row" style="margin:0" hidden>
+      <div><label class="f">Distribuidor</label><br><select id="selDist" style="min-width:200px"></select></div>
+      <div><label class="f">&nbsp;</label><br><button class="btn" id="btnImpDist">➕ Importar cadastro de distribuidor</button><input type="file" id="fileDist" accept=".xlsx,.xls" hidden></div>
+    </div>
     <div><label class="f">Período</label><br><select id="selPer"></select></div>
     <span class="pill" id="infoBase"></span>
   </div>
 
-  <div class="tabs"><div class="tab on" data-v="cli">🎯 Cliente 360</div><div class="tab" data-v="cx">📦 Caixa × Clientes</div></div>
+  <div class="tabs" id="tabsCli"><div class="tab on" data-v="cli">🎯 Cliente 360</div><div class="tab" data-v="cx">📦 Caixa × Clientes</div></div>
 
   <div class="sec">Montadora <a id="limpM">LIMPAR</a></div><div class="chips" id="chM"></div>
   <div class="sec">Caixas (selecione uma ou mais) <a id="selTodas">SELECIONAR TODAS</a><a id="limpC">LIMPAR</a></div>
@@ -119,6 +134,23 @@ td.n,th.n{text-align:right}
     <div class="tbl"><table><thead id="thP"></thead><tbody id="tbP"></tbody></table></div>
   </div>
 
+  <div id="vDist" hidden>
+    <div class="kpis">
+      <div class="kpi sel"><b id="dKSel">0</b><span>Códigos da fábrica na seleção</span></div>
+      <div class="kpi ja"><b id="dKTem">0</b><span>Distribuidor tem</span></div>
+      <div class="kpi op"><b id="dKNao">0</b><span>Fábrica tem e distribuidor não</span></div>
+      <div class="kpi cob"><b id="dKCob">0%</b><span>Cobertura do distribuidor</span></div>
+    </div>
+    <div class="curvas" id="dCurvas"></div>
+    <div class="tools">
+      <span class="tit">Produtos <span id="dNProd" style="color:var(--cinza);font-weight:400"></span></span>
+      <input type="text" id="dBusca" placeholder="Buscar código ou descrição…" style="width:240px">
+      <select id="dSelSt"><option value="">Todos os status</option><option value="n">Só o que o distribuidor NÃO tem</option><option value="s">Só o que o distribuidor tem</option><option value="sv">Tem cadastrado mas sem venda no período</option></select>
+      <button class="btn" id="dBtnExp">⬇ Exportar</button>
+    </div>
+    <div class="tbl"><table><thead id="dTh"></thead><tbody id="dTb"></tbody></table></div>
+  </div>
+
   <div id="vCx" hidden>
     <div class="tools"><span class="tit">Clientes que compram as peças das caixas selecionadas <span id="nCx" style="color:var(--cinza);font-weight:400"></span></span>
       <input type="text" id="buscaCx" placeholder="Buscar cliente / cidade…" style="width:240px">
@@ -130,7 +162,8 @@ td.n,th.n{text-align:right}
 
 <script>
 const DATA = /*__DATA__*/null;
-let P = DATA.P, CX = DATA.CX, C = DATA.C, R = DATA.R, V = DATA.V;
+let P = DATA.P, CX = DATA.CX, C = DATA.C, R = DATA.R, V = DATA.V, D = DATA.D || [];
+try{ (JSON.parse(localStorage.getItem('euro_dist_extra')||'[]')||[]).forEach(d=>D.push(d)); }catch(e){}
 // P: [cod,desc,curva,grupo,linha,aplicacao,codPadreCicero,codOriginal,preco,vendaSuspensa]
 const $ = id => document.getElementById(id);
 const fmtR = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -141,16 +174,18 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const ordCurva = {AA:0,A:1,B:2,C:3,'Lançamento':4};
 const cls = c => c==='Lançamento'?'cL':'c'+c;
 
-const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli' };
+const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli', visao:'cli', dist:0, dSt:'', dBusca:'', dSort:['curva',1] };
 
 function indexar(){
   // vendas por cliente: Map cli -> Map part -> {q,v,last}   (respeita o período)
-  S._idx = new Map();
+  S._idx = new Map(); S._vp = new Map();
   for(const [ci,pi,ym,q,v,last] of V){
     if(S.per && ym!==S.per) continue;
     let m = S._idx.get(ci); if(!m){ m=new Map(); S._idx.set(ci,m); }
     let x = m.get(pi); if(!x){ x={q:0,v:0,last:0}; m.set(pi,x); }
     x.q+=q; x.v+=v; if(last>x.last) x.last=last;
+    let y=S._vp.get(pi); if(!y){ y={q:0,v:0,cl:new Set()}; S._vp.set(pi,y); }
+    y.q+=q; y.v+=v; if(q>0) y.cl.add(ci);
   }
 }
 const comprou = x => x && x.q>0 && x.v>0;
@@ -162,7 +197,7 @@ function iniciar(){
   $('selRep').innerHTML='<option value="-1">Todos os representantes</option>'+R.map((r,i)=>[r,i]).sort((a,b)=>a[0].localeCompare(b[0])).map(([r,i])=>`<option value="${i}">${esc(r)}</option>`).join('');
   const nv=new Set(V.map(v=>v[0])).size;
   $('infoBase').textContent=`${fmtN(P.length)} códigos · ${CX.length} caixas · ${fmtN(C.length)} clientes · ${fmtN(nv)} compraram caixa`;
-  indexar(); desenharChips(); desenhar();
+  popularDist(); indexar(); desenharChips(); desenhar();
 }
 
 function caixasVisiveis(){ return CX.filter(c=>!S.mont.size||S.mont.has(c.m)); }
@@ -171,7 +206,8 @@ function selecaoPartes(){
   const set=new Set(); cxs.forEach(c=>c.p.forEach(i=>set.add(i)));
   return [...set].filter(i=>!S.grp.size||S.grp.has(P[i][3]||'Outros'));
 }
-function cobCaixa(c){ // % do cliente nessa caixa
+function cobCaixa(c){ // % do cliente (ou do distribuidor) nessa caixa
+  if(S.visao==='dist'){ const d=D[S.dist]; if(!d) return null; let n=0; c.p.forEach(i=>{ if(d.c[i]) n++; }); return Math.round(100*n/c.p.length); }
   if(S.cli===null) return null; const m=S._idx.get(S.cli)||new Map();
   let n=0; c.p.forEach(i=>{ if(comprou(m.get(i))) n++; }); return Math.round(100*n/c.p.length);
 }
@@ -187,9 +223,13 @@ function desenharChips(){
 
 function desenhar(){
   const cl=S.cli!==null?C[S.cli]:null;
-  $('hdrCli').innerHTML=cl?`Cliente: <b>${esc(cl[1])} (${esc(cl[0])})</b> · ${esc(cl[2])}-${esc(cl[3])} · Representante: <b>${esc(R[cl[4]])}</b>`:'Escolha um cliente para ver a cobertura das caixas.';
-  $('vCli').hidden=S.view!=='cli'; $('vCx').hidden=S.view!=='cx';
+  if(S.visao==='dist'){ const d=D[S.dist]; $('hdrCli').innerHTML=d?`Distribuidor: <b>${esc(d.n)}</b> · ${fmtN(Object.keys(d.c).length)} códigos da fábrica cadastrados (caixas)`:'Importe o cadastro de um distribuidor.'; }
+  else $('hdrCli').innerHTML=cl?`Cliente: <b>${esc(cl[1])} (${esc(cl[0])})</b> · ${esc(cl[2])}-${esc(cl[3])} · Representante: <b>${esc(R[cl[4]])}</b>`:'Escolha um cliente para ver a cobertura das caixas.';
+  const dist=S.visao==='dist';
+  $('gCli').hidden=dist; $('gDist').hidden=!dist; $('tabsCli').hidden=dist;
+  $('vDist').hidden=!dist; $('vCli').hidden=dist||S.view!=='cli'; $('vCx').hidden=dist||S.view!=='cx';
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===S.view));
+  if(dist){ desenharDist(); return; }
   if(S.view==='cli') desenharCliente(); else desenharCaixaCliente();
 }
 
@@ -217,14 +257,46 @@ function desenharCliente(){
     return {cod:P[i][0],desc:P[i][1],cx:cxDe(i),grupo:P[i][3],curva:ordCurva[P[i][2]]??9,st:comprou(x)?1:0,q:x.q,v:x.v,last:x.last,pc:P[i][6]}[k]; };
   const [k,d]=S.sortP; lista.sort((a,b)=>{const x=val(a,k),y=val(b,k); return (x>y?1:x<y?-1:0)*d||(P[a][0]>P[b][0]?1:-1);});
   S._rowsP=lista;
-  const cols=[['cod','Código'],['desc','Produto'],['cx','Caixa(s)'],['grupo','Grupo'],['pc','Cód. Padre Cícero'],['curva','Curva'],['st','Status'],['q','Qtd comprada','n'],['v','Valor','n'],['last','Última compra']];
+  const cols=[['cod','Código'],['desc','Produto'],['cx','Caixa(s)'],['grupo','Grupo'],['pc','Cód. Padre Cícero'],['curva','Curva'],['st','Status'],['q','Qtd comprada','n'],['last','Última compra']];
   $('thP').innerHTML='<tr>'+cols.map(([k,t,n])=>`<th class="${n||''}" data-s="${k}">${t}${S.sortP[0]===k?(S.sortP[1]>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
   $('nProd').textContent='('+fmtN(lista.length)+')';
   $('tbP').innerHTML=lista.length?lista.slice(0,1500).map(i=>{const x=m.get(i), ok=comprou(x), p=P[i];
     return `<tr><td>${esc(p[0])}</td><td>${esc(p[1])}${p[9]?' <small style="color:var(--nao)">(venda suspensa)</small>':''}</td><td>${esc(cxDe(i))}</td><td>${esc(p[3])}</td><td>${esc(p[6])}</td>
       <td><span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':p[2]}</span></td>
       <td>${S.cli===null?'—':`<span class="st ${ok?'s':'n'}">${ok?'Compra':'Não compra'}</span>`}</td>
-      <td class="n">${ok?fmtN(x.q):''}</td><td class="n">${ok?fmtR(x.v):''}</td><td>${ok&&x.last?serial2str(x.last):''}</td></tr>`;}).join('')
+      <td class="n">${ok?fmtN(x.q):''}</td><td>${ok&&x.last?serial2str(x.last):''}</td></tr>`;}).join('')
+    :'<tr><td colspan="10" class="vazio">Nenhum produto na seleção.</td></tr>';
+}
+
+function desenharDist(){
+  const d=D[S.dist]; const base=selecaoPartes(); const tem=i=>d&&d.c[i]!==undefined;
+  const vend=d&&d.vendas; const vp=i=>S._vp.get(i)||{q:0,v:0,cl:new Set()};
+  const sold=i=>vend&&vp(i).q>0;
+  const nTem=base.filter(tem).length;
+  $('dKSel').textContent=fmtN(base.length); $('dKTem').textContent=fmtN(nTem); $('dKNao').textContent=fmtN(base.length-nTem);
+  $('dKCob').textContent=base.length?(100*nTem/base.length).toFixed(1)+'%':'—';
+  const grupos=[['AA / A',['AA','A'],'--aa'],['B',['B'],'--b'],['C',['C'],'--c'],['Lançamentos',['Lançamento'],'--l']];
+  $('dCurvas').innerHTML=grupos.map(([nome,cs,cor])=>{
+    const t=base.filter(i=>cs.includes(P[i][2])), j=t.filter(tem); const pc=t.length?100*j.length/t.length:0;
+    return `<div class="cv ${S.curva===nome?'on':''}" data-cv="${nome}"><h4><span>Curva ${nome}</span><span>${fmtN(t.length)} cód.</span></h4>
+      <div class="pc" style="color:var(${cor})">${pc.toFixed(1)}%</div><div class="bar"><div style="width:${pc}%;background:var(${cor})"></div></div>
+      <small>${j.length} de ${t.length} códigos o distribuidor tem · faltam ${t.length-j.length}</small></div>`;}).join('');
+  let lista=base.slice(); const cvSel=grupos.find(g=>g[0]===S.curva); if(cvSel) lista=lista.filter(i=>cvSel[1].includes(P[i][2]));
+  if(S.dSt==='n') lista=lista.filter(i=>!tem(i)); else if(S.dSt==='s') lista=lista.filter(tem); else if(S.dSt==='sv') lista=lista.filter(i=>tem(i)&&!sold(i));
+  const q=S.dBusca.trim().toLowerCase(); if(q) lista=lista.filter(i=>(P[i][0]+' '+P[i][1]+' '+P[i][7]).toLowerCase().includes(q));
+  const cxDe=i=>CX.filter(c=>c.p.includes(i)&&(!S.cx.size||S.cx.has(c.n))).map(c=>c.n).join(', ');
+  const val=(i,k)=>({cod:P[i][0],desc:P[i][1],cx:cxDe(i),grupo:P[i][3],curva:ordCurva[P[i][2]]??9,st:tem(i)?1:0,dcod:tem(i)?d.c[i][0]:'',q:vp(i).q,v:vp(i).v,cl:vp(i).cl.size}[k]);
+  const [k,dir]=S.dSort; lista.sort((a,b)=>{const x=val(a,k),y=val(b,k); return (x>y?1:x<y?-1:0)*dir||(P[a][0]>P[b][0]?1:-1);});
+  S._rowsD=lista;
+  const cols=[['cod','Código fábrica'],['desc','Produto'],['cx','Caixa(s)'],['grupo','Grupo'],['curva','Curva'],['st','Distribuidor'],['dcod','Cód. no distribuidor']];
+  if(vend) cols.push(['q','Qtd vendida','n'],['cl','Clientes','n']);
+  $('dTh').innerHTML='<tr>'+cols.map(([c,t,n])=>`<th class="${n||''}" data-ds="${c}">${t}${S.dSort[0]===c?(S.dSort[1]>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
+  $('dNProd').textContent='('+fmtN(lista.length)+')';
+  $('dTb').innerHTML=lista.length?lista.slice(0,1500).map(i=>{const p=P[i], t=tem(i), y=vp(i);
+    return `<tr><td>${esc(p[0])}</td><td>${esc(p[1])}${p[9]?' <small style="color:var(--nao)">(venda suspensa)</small>':''}</td><td>${esc(cxDe(i))}</td><td>${esc(p[3])}</td>
+      <td><span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':p[2]}</span></td>
+      <td><span class="st ${t?'s':'n'}">${t?'Tem':'Não tem'}</span></td><td>${t?esc(d.c[i][0]):''}</td>
+      ${vend?`<td class="n">${y.q>0?fmtN(y.q):''}</td><td class="n">${y.cl.size||''}</td>`:''}</tr>`;}).join('')
     :'<tr><td colspan="10" class="vazio">Nenhum produto na seleção.</td></tr>';
 }
 
@@ -240,23 +312,24 @@ function desenharCaixaCliente(){
   }
   const [k,d]=S.sortX; linhas.sort((a,b)=>(a[k]>b[k]?1:a[k]<b[k]?-1:0)*d);
   S._rowsX=linhas; $('nCx').textContent='('+fmtN(linhas.length)+' clientes · '+fmtN(base.size)+' códigos na seleção)';
-  const cols=[['nome','Cliente'],['cid','Cidade'],['rep','Representante'],['n','Códigos comprados','n'],['cob','Cobertura','n'],['v','Valor','n'],['last','Última compra']];
+  const cols=[['nome','Cliente'],['cid','Cidade'],['rep','Representante'],['n','Códigos comprados','n'],['cob','Cobertura','n'],['last','Última compra']];
   $('thX').innerHTML='<tr>'+cols.map(([k,t,n])=>`<th class="${n||''}" data-s="${k}">${t}${S.sortX[0]===k?(S.sortX[1]>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
   $('tbX').innerHTML=linhas.length?linhas.slice(0,1500).map(l=>`<tr><td><span class="link" data-ci="${l.ci}">${esc(l.nome)}</span> <small style="color:var(--cinza)">${esc(l.cod)}</small></td><td>${esc(l.cid)}</td><td>${esc(l.rep)}</td>
-    <td class="n">${l.n} / ${l.tot}</td><td class="n"><b>${l.cob.toFixed(1)}%</b></td><td class="n">${fmtR(l.v)}</td><td>${l.last?serial2str(l.last):''}</td></tr>`).join('')
+    <td class="n">${l.n} / ${l.tot}</td><td class="n"><b>${l.cob.toFixed(1)}%</b></td><td>${l.last?serial2str(l.last):''}</td></tr>`).join('')
     :'<tr><td colspan="7" class="vazio">Nenhum cliente comprou peças desta seleção no período.</td></tr>';
 }
 
 // ---- eventos
 function toggle(set,v){ set.has(v)?set.delete(v):set.add(v); }
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-m],[data-c],[data-g],[data-cv],[data-s],[data-v],[data-ci]'); if(!t){ $('ddCli').hidden=true; return; }
+  const t=e.target.closest('[data-m],[data-c],[data-g],[data-cv],[data-s],[data-ds],[data-v],[data-ci]'); if(!t){ $('ddCli').hidden=true; return; }
   if(t.dataset.m!==undefined){ toggle(S.mont,t.dataset.m); S.cx=new Set([...S.cx].filter(n=>caixasVisiveis().some(c=>c.n===n))); desenharChips(); }
   else if(t.dataset.c!==undefined){ toggle(S.cx,t.dataset.c); desenharChips(); }
   else if(t.dataset.g!==undefined){ toggle(S.grp,t.dataset.g); desenharChips(); }
   else if(t.dataset.cv!==undefined){ S.curva=S.curva===t.dataset.cv?null:t.dataset.cv; }
   else if(t.dataset.v!==undefined){ S.view=t.dataset.v; }
   else if(t.dataset.ci!==undefined){ escolherCliente(+t.dataset.ci); S.view='cli'; }
+  else if(t.dataset.ds!==undefined){ S.dSort=[t.dataset.ds,S.dSort[0]===t.dataset.ds?-S.dSort[1]:1]; }
   else if(t.dataset.s!==undefined){ const key=S.view==='cli'?'sortP':'sortX'; S[key]=[t.dataset.s,S[key][0]===t.dataset.s?-S[key][1]:1]; }
   desenhar();
 });
@@ -266,6 +339,30 @@ $('limpG').onclick=()=>{S.grp.clear();desenharChips();desenhar();};
 $('selTodas').onclick=()=>{caixasVisiveis().forEach(c=>S.cx.add(c.n));desenharChips();desenhar();};
 $('selPer').onchange=e=>{S.per=e.target.value;indexar();desenharChips();desenhar();};
 $('selRep').onchange=e=>{S.rep=+e.target.value; if(S.cli!==null&&S.rep>=0&&C[S.cli][4]!==S.rep) S.cli=null; $('inpCli').value=''; indexar(); desenharChips(); desenhar();};
+$('selVisao').onchange=e=>{S.visao=e.target.value;desenharChips();desenhar();};
+$('selDist').onchange=e=>{S.dist=+e.target.value;desenharChips();desenhar();};
+$('dBusca').oninput=e=>{S.dBusca=e.target.value;desenhar();};
+$('dSelSt').onchange=e=>{S.dSt=e.target.value;desenhar();};
+$('dBtnExp').onclick=()=>{ const d=D[S.dist]; const vp=i=>S._vp.get(i)||{q:0,v:0,cl:new Set()};
+  baixar(S._rowsD.map(i=>{const p=P[i],t=d.c[i]!==undefined,y=vp(i);return [p[0],p[1],p[3],p[2],t?'Tem':'Não tem',t?d.c[i][0]:'',d.vendas?y.q:'',d.vendas?y.cl.size:''];}),
+  ['Código fábrica','Produto','Grupo','Curva','Distribuidor','Cód. no distribuidor','Qtd vendida','Clientes'],'fabrica_x_'+d.n.replace(/\s+/g,'_')+'.xlsx'); };
+// importar cadastro de outro distribuidor: coluna A = Cód. Eurotécnica, coluna B = Cód. do distribuidor
+$('btnImpDist').onclick=()=>$('fileDist').click();
+$('fileDist').onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const nome=(prompt('Nome do distribuidor:',f.name.replace(/\.[^.]+$/,''))||'').trim(); if(!nome){ e.target.value=''; return; }
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array'}); const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true});
+    const pidx=new Map(P.map((p,i)=>[p[0],i])); const c={}; let n=0;
+    for(const r of rows.slice(1)){ const pi=pidx.get(String(r[0]||'').trim()); if(pi===undefined) continue; c[pi]=[String(r[1]??'').replace(/\.0$/,''),String(r[2]||''),String(r[3]||'ATIVO')]; n++; }
+    if(!n) throw new Error('Nenhum código Eurotécnica das caixas encontrado na coluna A.');
+    const novo={n:nome,vendas:0,c}; const ex=D.findIndex(x=>x.n===nome&&!x.vendas); if(ex>=0) D[ex]=novo; else D.push(novo);
+    try{ localStorage.setItem('euro_dist_extra',JSON.stringify(D.filter(x=>!x.vendas))); }catch(_){}
+    S.dist=D.findIndex(x=>x.n===nome); popularDist(); desenharChips(); desenhar(); alert(`${nome}: ${n} códigos cadastrados.`);
+  }catch(err){ alert('Não consegui importar: '+err.message); }
+  e.target.value='';
+};
+function popularDist(){ $('selDist').innerHTML=D.map((d,i)=>`<option value="${i}" ${i===S.dist?'selected':''}>${esc(d.n)}</option>`).join(''); }
 $('busca').oninput=e=>{S.busca=e.target.value;desenhar();};
 $('buscaCx').oninput=desenhar;
 $('selSt').onchange=e=>{S.st=e.target.value;desenhar();};
@@ -289,10 +386,10 @@ function baixar(linhas,cab,nome){
 }
 $('btnExp').onclick=()=>{
   const m=S.cli!==null?(S._idx.get(S.cli)||new Map()):new Map();
-  baixar(S._rowsP.map(i=>{const x=m.get(i),ok=comprou(x),p=P[i];return [p[0],p[1],p[3],p[6],p[2],S.cli===null?'':ok?'Compra':'Não compra',ok?x.q:'',ok?x.v:'',ok&&x.last?serial2str(x.last):''];}),
-    ['Código','Produto','Grupo','Cód. Padre Cícero','Curva','Status','Qtd comprada','Valor','Última compra'],'cliente360_'+(S.cli!==null?C[S.cli][0]:'catalogo')+'.xlsx');
+  baixar(S._rowsP.map(i=>{const x=m.get(i),ok=comprou(x),p=P[i];return [p[0],p[1],p[3],p[6],p[2],S.cli===null?'':ok?'Compra':'Não compra',ok?x.q:'',ok&&x.last?serial2str(x.last):''];}),
+    ['Código','Produto','Grupo','Cód. Padre Cícero','Curva','Status','Qtd comprada','Última compra'],'cliente360_'+(S.cli!==null?C[S.cli][0]:'catalogo')+'.xlsx');
 };
-$('btnExpCx').onclick=()=>baixar(S._rowsX.map(l=>[l.nome,l.cod,l.cid,l.rep,l.n,l.tot,+l.cob.toFixed(1),l.v,l.last?serial2str(l.last):'']),['Cliente','Código','Cidade','Representante','Códigos comprados','Códigos na seleção','Cobertura %','Valor','Última compra'],'caixa_x_clientes.xlsx');
+$('btnExpCx').onclick=()=>baixar(S._rowsX.map(l=>[l.nome,l.cod,l.cid,l.rep,l.n,l.tot,+l.cob.toFixed(1),l.last?serial2str(l.last):'']),['Cliente','Código','Cidade','Representante','Códigos comprados','Códigos na seleção','Cobertura %','Última compra'],'caixa_x_clientes.xlsx');
 
 // ---- importar nova planilha de vendas (mesmo layout "Base Dados")
 $('btnImp').onclick=()=>$('fileImp').click();
