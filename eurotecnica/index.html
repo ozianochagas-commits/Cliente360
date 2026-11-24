@@ -180,20 +180,26 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
 
   <div id="vPlano" hidden>
     <div class="tools">
-      <span class="tit">📋 Plano de Negócio — painel geral das fábricas</span>
+      <button class="btn" id="plVoltar" hidden>← Painel geral</button>
+      <span class="tit" id="plTit">📊 Painel geral executivo</span>
       <button class="btn sol" id="plNovo">➕ Cadastrar novo plano</button>
       <button class="btn" id="plFab">🏭 Nova fábrica</button>
       <button class="btn" id="plExp">⬇ Exportar</button>
     </div>
-    <div class="fabs" id="plFabs"></div>
     <div class="tools">
       <select id="plSelFab"></select>
       <select id="plSelPer"></select>
-      <input type="text" id="plBusca" placeholder="Buscar plano / cliente…" style="width:240px">
+      <input type="text" id="plBusca" placeholder="Buscar plano / cliente…" style="width:240px" hidden>
     </div>
-    <div class="pg">
+    <div class="kpis" id="plKpis"></div>
+    <div id="plExec">
+      <div class="sec">Comparativo entre fábricas <small style="text-transform:none;font-weight:400">— clique numa fábrica para ver os valores dela</small></div>
+      <div class="tbl" style="max-height:none"><table><thead id="plXh"></thead><tbody id="plXb"></tbody></table></div>
+      <div class="sec">Maiores faltas para bater o plano</div>
+      <div class="tbl" style="max-height:none"><table><thead id="plFh"></thead><tbody id="plFb"></tbody></table></div>
+    </div>
+    <div id="plDet" hidden>
       <div class="tbl" style="max-height:620px"><table><thead id="plTh"></thead><tbody id="plTb"></tbody></table></div>
-      <div class="side" id="plSide"></div>
     </div>
   </div>
 
@@ -382,38 +388,48 @@ function ufPl(pl){ const c=String(pl.cod||'').split(/[,;\s]+/).filter(Boolean)[0
 function calcPl(pl){ const auto=fatAuto(pl); const fat=pl.fat!=null?pl.fat:(auto!=null?auto:0);
   return Object.assign({},pl,{uf:ufPl(pl),fat,auto:pl.fat==null&&auto!=null,falta:Math.max(0,(pl.meta||0)-fat),pct:pl.meta?100*fat/pl.meta:0,faltaR:Math.max(0,(pl.rebate||0)-fat),pctR:pl.rebate?100*fat/pl.rebate:0}); }
 function desenharPlano(){
-  const todos=PL.map(calcPl);
-  $('plSelFab').innerHTML='<option value="">Todas as fábricas</option>'+FB.map(f=>`<option ${S.plFab===f?'selected':''}>${esc(f)}</option>`).join('');
+  const todos=PL.map(calcPl); const fab=S.plFab; const exec=!fab;
+  $('plSelFab').innerHTML='<option value="">📊 Painel geral (todas as fábricas)</option>'+FB.map(f=>`<option ${fab===f?'selected':''}>${esc(f)}</option>`).join('');
   $('plSelPer').innerHTML='<option value="">Todos os períodos</option>'+Object.keys(PER).map(k=>`<option value="${k}" ${S.plPer===k?'selected':''}>${PER[k][2]}</option>`).join('');
+  $('plVoltar').hidden=exec; $('plBusca').hidden=exec; $('plExec').hidden=!exec; $('plDet').hidden=exec;
+  $('plTit').textContent=exec?'📊 Painel geral executivo':'🏭 '+fab;
   const sum=a=>({fm:a.filter(p=>p.meta).reduce((x,p)=>x+p.fat,0),fr:a.filter(p=>p.rebate).reduce((x,p)=>x+p.fat,0),fat:a.reduce((x,p)=>x+p.fat,0),meta:a.reduce((x,p)=>x+(p.meta||0),0),reb:a.reduce((x,p)=>x+(p.rebate||0),0),n:a.length,bat:a.filter(p=>p.meta&&p.fat>=p.meta).length,batR:a.filter(p=>p.rebate&&p.fat>=p.rebate).length});
-  $('plFabs').innerHTML=FB.map(f=>{ const a=todos.filter(p=>p.fab===f), t=sum(a), pc=t.meta?100*t.fm/t.meta:0;
-    return `<div class="fab ${S.plFab===f?'on':''}" data-pf="${esc(f)}"><h4><span>🏭 ${esc(f)}</span><span class="pp ${pc>=100?'ok':''}">${pc.toFixed(1)}%</span></h4>
-      <div class="mini"><div style="width:${Math.min(100,pc)}%"></div></div>
-      <small>Faturado ${fmtR(t.fat)} · Meta plano ${fmtR(t.meta)}</small><small>Meta rebate ${fmtR(t.reb)} · ${t.n} plano(s) · ${t.bat} batido(s)</small></div>`; }).join('')
-    +`<div class="fab" style="border-left-color:var(--preto)" data-pf=""><h4><span>📊 Painel geral</span><span class="pp">${(()=>{const t=sum(todos);return t.meta?(100*t.fm/t.meta).toFixed(1):'0.0';})()}%</span></h4><small>Todas as fábricas (${FB.length})</small><small>${todos.length} plano(s) cadastrados</small></div>`;
-  let l=todos.filter(p=>(!S.plFab||p.fab===S.plFab)&&(!S.plPer||p.per===S.plPer));
-  const q=(S.plBusca||'').trim().toLowerCase(); if(q) l=l.filter(p=>(p.nome+' '+p.cod+' '+p.fab).toLowerCase().includes(q));
-  l.sort((a,b)=>a.fab.localeCompare(b.fab)||a.nome.localeCompare(b.nome));
-  S._rowsPl=l; const t=sum(l);
-  $('plTh').innerHTML='<tr><th>UF</th><th>Cód. cliente</th><th>Plano / cliente</th><th>Fábrica</th><th>Período</th><th class="n">Faturado R$</th><th class="n">Meta plano R$</th><th class="n">Falta R$</th><th class="n">% Plano</th><th class="n">Meta rebate R$</th><th class="n">Falta R$</th><th class="n">% Rebate</th><th></th></tr>';
+  const pP=t=>t.meta?100*t.fm/t.meta:0, pR=t=>t.reb?100*t.fr/t.reb:0;
+  const cor=v=>v>=100?'ok':'no';
+  const bar=(v,c)=>`<div class="mini"><div style="width:${Math.min(100,v)}%;${c?`background:${c}`:''}"></div></div>`;
+  const porPer=todos.filter(p=>!S.plPer||p.per===S.plPer);
+  let l=porPer.filter(p=>exec||p.fab===fab);
+  const q=(S.plBusca||'').trim().toLowerCase(); if(!exec&&q) l=l.filter(p=>(p.nome+' '+p.cod).toLowerCase().includes(q));
+  const t=sum(exec?porPer:l);
+  // KPIs (consolidado ou da fábrica)
+  $('plKpis').innerHTML=`<div class="kpi sel"><b>${fmtR(t.fat)}</b><span>Faturado${exec?'':' — '+esc(fab)}</span><small style="display:block;color:var(--cinza);margin-top:4px">${t.n} plano(s)</small></div>
+    <div class="kpi"><b class="pp ${cor(pP(t))}">${pP(t).toFixed(1)}%</b><span>Resultado do plano</span>${bar(pP(t))}<small style="display:block;color:var(--cinza);margin-top:4px">Meta ${fmtR(t.meta)} · falta ${fmtR(Math.max(0,t.meta-t.fm))}</small></div>
+    <div class="kpi"><b class="pp ${cor(pR(t))}">${pR(t).toFixed(1)}%</b><span>Resultado do rebate</span>${bar(pR(t),'var(--b)')}<small style="display:block;color:var(--cinza);margin-top:4px">Meta ${fmtR(t.reb)} · falta ${fmtR(Math.max(0,t.reb-t.fr))}</small></div>
+    <div class="kpi cob"><b>${t.bat}/${t.n}</b><span>Planos batidos</span><small style="display:block;color:#d6f2e3;margin-top:4px">Rebates batidos ${t.batR}/${t.n}</small></div>`;
+  if(exec){
+    S._rowsPl=porPer.slice().sort((a,b)=>a.fab.localeCompare(b.fab)||a.nome.localeCompare(b.nome));
+    $('plXh').innerHTML='<tr><th>Fábrica</th><th class="n">Planos</th><th class="n">Faturado R$</th><th class="n">Meta plano R$</th><th style="min-width:140px">% Plano</th><th class="n">Meta rebate R$</th><th style="min-width:140px">% Rebate</th><th class="n">Batidos (plano / rebate)</th></tr>';
+    const linha=f=>{ const x=sum(porPer.filter(p=>p.fab===f));
+      return `<tr style="cursor:pointer" data-pf="${esc(f)}"><td><b>🏭 ${esc(f)}</b></td><td class="n">${x.n}</td><td class="n">${fmtR(x.fat)}</td><td class="n">${x.meta?fmtR(x.meta):'—'}</td>
+        <td>${x.meta?`<span class="pp ${cor(pP(x))}">${pP(x).toFixed(1)}%</span>${bar(pP(x))}`:'—'}</td><td class="n">${x.reb?fmtR(x.reb):'—'}</td>
+        <td>${x.reb?`<span class="pp ${cor(pR(x))}">${pR(x).toFixed(1)}%</span>${bar(pR(x),'var(--b)')}`:'—'}</td><td class="n">${x.bat} / ${x.batR}</td></tr>`; };
+    $('plXb').innerHTML=FB.map(linha).join('')
+      +`<tr class="tot"><td>TOTAL GERAL</td><td class="n">${t.n}</td><td class="n">${fmtR(t.fat)}</td><td class="n">${fmtR(t.meta)}</td><td>${t.meta?pP(t).toFixed(1)+'%':'—'}</td><td class="n">${fmtR(t.reb)}</td><td>${t.reb?pR(t).toFixed(1)+'%':'—'}</td><td class="n">${t.bat} / ${t.batR}</td></tr>`;
+    $('plFh').innerHTML='<tr><th>Plano / cliente</th><th>Fábrica</th><th class="n">Faturado R$</th><th class="n">Meta plano R$</th><th class="n">Falta R$</th><th class="n">% Plano</th></tr>';
+    const fl=porPer.filter(p=>p.meta&&p.falta>0).sort((a,b)=>b.falta-a.falta).slice(0,5);
+    $('plFb').innerHTML=fl.length?fl.map(p=>`<tr style="cursor:pointer" data-pf="${esc(p.fab)}"><td><b>${esc(p.nome)}</b></td><td>${esc(p.fab)}</td><td class="n">${fmtR(p.fat)}</td><td class="n">${fmtR(p.meta)}</td><td class="n">${fmtR(p.falta)}</td><td class="n"><span class="pp no">${p.pct.toFixed(1)}%</span></td></tr>`).join('')
+      :'<tr><td colspan="6" class="vazio">Nenhum plano com falta. 🎉</td></tr>';
+    return;
+  }
+  l.sort((a,b)=>a.nome.localeCompare(b.nome)); S._rowsPl=l;
+  $('plTh').innerHTML='<tr><th>UF</th><th>Cód. cliente</th><th>Plano / cliente</th><th>Período</th><th class="n">Faturado R$</th><th class="n">Meta plano R$</th><th class="n">Falta R$</th><th class="n">% Plano</th><th class="n">Meta rebate R$</th><th class="n">Falta R$</th><th class="n">% Rebate</th><th></th></tr>';
   const pc=(v,ok)=>`<span class="pp ${ok?'ok':'no'}">${v.toFixed(1)}%</span>`;
-  $('plTb').innerHTML=l.length?l.map(p=>`<tr><td>${esc(p.uf)}</td><td>${esc(p.cod||'—')}</td><td><b>${esc(p.nome)}</b></td><td>${esc(p.fab)}</td><td>${PER[p.per||'ANO'][2]}</td>
+  $('plTb').innerHTML=l.length?l.map(p=>`<tr><td>${esc(p.uf)}</td><td>${esc(p.cod||'—')}</td><td><b>${esc(p.nome)}</b></td><td>${PER[p.per||'ANO'][2]}</td>
     <td class="n">${fmtR(p.fat)}${p.auto?' <small title="Puxado das vendas">⚙</small>':''}</td><td class="n">${p.meta?fmtR(p.meta):'—'}</td><td class="n">${p.meta?fmtR(p.falta):'—'}</td><td class="n">${p.meta?pc(p.pct,p.pct>=100):'—'}</td>
     <td class="n">${p.rebate?fmtR(p.rebate):'—'}</td><td class="n">${p.rebate?fmtR(p.faltaR):'—'}</td><td class="n">${p.rebate?pc(p.pctR,p.pctR>=100):'—'}</td>
     <td style="white-space:nowrap"><button class="ic" data-pe="${p.id}" title="Editar">✏️</button><button class="ic" data-pd="${p.id}" title="Excluir">🗑</button></td></tr>`).join('')
-    +`<tr class="tot"><td colspan="5">TOTAL GERAL</td><td class="n">${fmtR(t.fat)}</td><td class="n">${fmtR(t.meta)}</td><td class="n">${fmtR(Math.max(0,t.meta-t.fm))}</td><td class="n">${t.meta?(100*t.fm/t.meta).toFixed(1)+'%':'—'}</td><td class="n">${fmtR(t.reb)}</td><td class="n">${fmtR(Math.max(0,t.reb-t.fr))}</td><td class="n">${t.reb?(100*t.fr/t.reb).toFixed(1)+'%':'—'}</td><td></td></tr>`
-    :'<tr><td colspan="13" class="vazio">Nenhum plano cadastrado. Use "➕ Cadastrar novo plano".</td></tr>';
-  $('plSide').innerHTML=`<div style="font-weight:800;font-size:11px;text-transform:uppercase;color:var(--cinza)">📊 Totais do plano</div>
-    <div class="l">Total faturado</div><div class="v" style="color:var(--verde-esc)">${fmtR(t.fat)}</div>
-    <div class="l">Meta plano</div><div class="v">${fmtR(t.meta)}</div>
-    <div class="l">Falta p/ plano</div><div class="v" style="color:var(--nao)">${fmtR(Math.max(0,t.meta-t.fm))}</div>
-    <div class="l">Meta rebate</div><div class="v">${fmtR(t.reb)}</div>
-    <div class="l">Falta p/ rebate</div><div class="v" style="color:var(--nao)">${fmtR(Math.max(0,t.reb-t.fr))}</div>
-    <div class="big"><div class="l" style="margin:0">Resultado do plano</div><b>${t.meta?(100*t.fm/t.meta).toFixed(1):'0.0'}%</b></div>
-    <div class="big"><div class="l" style="margin:0">Resultado do rebate</div><b>${t.reb?(100*t.fr/t.reb).toFixed(1):'0.0'}%</b></div>
-    <div class="l">Total de planos</div><div class="v">${t.n}</div>
-    <div class="l">Planos batidos</div><div class="v" style="color:var(--ok)">${t.bat}</div><small style="color:var(--cinza)">de ${t.n}</small>
-    <div class="l">Rebates batidos</div><div class="v" style="color:var(--ok)">${t.batR}</div><small style="color:var(--cinza)">de ${t.n}</small>`;
+    +`<tr class="tot"><td colspan="4">TOTAL — ${esc(fab)}</td><td class="n">${fmtR(t.fat)}</td><td class="n">${fmtR(t.meta)}</td><td class="n">${fmtR(Math.max(0,t.meta-t.fm))}</td><td class="n">${t.meta?pP(t).toFixed(1)+'%':'—'}</td><td class="n">${fmtR(t.reb)}</td><td class="n">${fmtR(Math.max(0,t.reb-t.fr))}</td><td class="n">${t.reb?pR(t).toFixed(1)+'%':'—'}</td><td></td></tr>`
+    :'<tr><td colspan="12" class="vazio">Nenhum plano desta fábrica. Use "➕ Cadastrar novo plano".</td></tr>';
 }
 function abrirPlano(id){
   const p=PL.find(x=>x.id===id)||{}; S._plEdit=id||null;
@@ -439,7 +455,8 @@ $('mSalvar').onclick=()=>{
 $('plSelFab').onchange=e=>{S.plFab=e.target.value;desenharPlano();};
 $('plSelPer').onchange=e=>{S.plPer=e.target.value;desenharPlano();};
 $('plBusca').oninput=e=>{S.plBusca=e.target.value;desenharPlano();};
-$('plFabs').addEventListener('click',e=>{ const c=e.target.closest('[data-pf]'); if(c){ S.plFab=c.dataset.pf; desenharPlano(); } });
+$('plExec').addEventListener('click',e=>{ const c=e.target.closest('[data-pf]'); if(c){ S.plFab=c.dataset.pf; desenharPlano(); } });
+$('plVoltar').onclick=()=>{ S.plFab=''; S.plBusca=''; $('plBusca').value=''; desenharPlano(); };
 $('plTb').addEventListener('click',e=>{
   const ed=e.target.closest('[data-pe]'), de=e.target.closest('[data-pd]');
   if(ed) abrirPlano(ed.dataset.pe);
