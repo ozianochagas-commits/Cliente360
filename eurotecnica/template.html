@@ -257,6 +257,7 @@ const DATA = /*__DATA__*/null;
 let P = DATA.P, CX = DATA.CX, C = DATA.C, R = DATA.R, V = DATA.V, D = DATA.D || [];
 try{ (JSON.parse(localStorage.getItem('euro_dist_extra')||'[]')||[]).forEach(d=>D.push(d)); }catch(e){}
 D.forEach(d=>{ try{ const x=JSON.parse(localStorage.getItem('euro_estoque_'+d.n)||'null'); if(x&&x.e){ d.e=x.e; d.lojas=x.lojas||[]; } }catch(e){} });
+D.forEach(d=>{ if(!d.vendas) return; try{ const x=JSON.parse(localStorage.getItem('euro_cad_'+d.n)||'null'); if(x) d.c=x; }catch(e){} });
 // P: [cod,desc,curva,grupo,linha,aplicacao,codPadreCicero,codOriginal,preco,vendaSuspensa]
 const $ = id => document.getElementById(id);
 const fmtR = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -693,17 +694,46 @@ $('dBtnExp').onclick=()=>{ const d=D[S.dist]; const vp=i=>S._vp.get(i)||{q:0,v:0
   cab,'fabrica_x_'+d.n.replace(/\s+/g,'_')+'.xlsx'); };
 // importar cadastro de outro distribuidor: coluna A = Cód. Eurotécnica, coluna B = Cód. do distribuidor
 $('btnImpDist').onclick=()=>$('fileDist').click();
+// ---- leitura da base de cadastro: acha o cabeçalho (pode ter título nas primeiras linhas) e as colunas pelo nome
+const normTxt=t=>String(t??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+function lerCadastro(rows){
+  let hi=-1, col=null;
+  for(let r=0;r<Math.min(15,rows.length);r++){
+    const h=(rows[r]||[]).map(normTxt);
+    const eu=h.findIndex(x=>x==='referencia'||/cod.*eurot|eurot.*cod/.test(x));
+    const di=h.findIndex(x=>x==='material'||/cod.*(padre|distrib)|^produto$/.test(x));
+    if(eu>=0&&di>=0){ hi=r; col={eu,di,ds:h.findIndex(x=>/descri/.test(x)),st:h.findIndex(x=>/situa|stiua/.test(x))}; break; }
+  }
+  if(!col){ hi=0; col={eu:0,di:1,ds:2,st:3}; }   // layout simples: A = cód. Eurotécnica, B = cód. do distribuidor
+  return {hi,col};
+}
+// mesma regra das vendas: código exato -> 8 primeiros dígitos (só se forem de uma peça só)
+function criarResolverPeca(){
+  const pidx=new Map(P.map((p,i)=>[p[0],i])); const pref=new Map(); P.forEach((p,i)=>{ const k=p[0].slice(0,8); pref.set(k,pref.has(k)?-1:i); });
+  return cod=>{ if(pidx.has(cod)) return {i:pidx.get(cod),exato:true}; const k=pref.get(cod.slice(0,8)); return (k!==undefined&&k>=0)?{i:k,exato:false}:null; };
+}
 $('fileDist').onchange=async e=>{
   const f=e.target.files[0]; if(!f) return;
   try{
-    const nome=(prompt('Nome do distribuidor:',f.name.replace(/\.[^.]+$/,''))||'').trim(); if(!nome){ e.target.value=''; return; }
+    const atual=D[S.dist]?D[S.dist].n:'';
+    const nome=(prompt('Nome do distribuidor (se for o mesmo que está selecionado, o cadastro dele é atualizado):',atual||f.name.replace(/\.[^.]+$/,''))||'').trim(); if(!nome){ e.target.value=''; return; }
     const wb=XLSX.read(await f.arrayBuffer(),{type:'array'}); const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true});
-    const pidx=new Map(P.map((p,i)=>[p[0],i])); const c={}; let n=0;
-    for(const r of rows.slice(1)){ const pi=pidx.get(String(r[0]||'').trim()); if(pi===undefined) continue; c[pi]=[String(r[1]??'').replace(/\.0$/,''),String(r[2]||''),String(r[3]||'ATIVO')]; n++; }
-    if(!n) throw new Error('Nenhum código Eurotécnica das caixas encontrado na coluna A.');
-    const novo={n:nome,vendas:0,c}; const ex=D.findIndex(x=>x.n===nome&&!x.vendas); if(ex>=0) D[ex]=novo; else D.push(novo);
-    try{ localStorage.setItem('euro_dist_extra',JSON.stringify(D.filter(x=>!x.vendas))); }catch(_){}
-    S.dist=D.findIndex(x=>x.n===nome); popularDist(); desenharChips(); desenhar(); alert(`${nome}: ${n} códigos cadastrados.`);
+    const {hi,col}=lerCadastro(rows); const res=criarResolverPeca(); const c={}; let n=0, aprox=0, inativos=0;
+    for(const r of rows.slice(hi+1)){
+      const cod=String(r[col.eu]??'').trim(); if(!cod) continue;
+      if(col.st>=0&&r[col.st]!=null&&r[col.st]!==''&&normTxt(r[col.st])!=='ativo'){ inativos++; continue; }
+      const m=res(cod); if(!m) continue;
+      if(c[m.i]&&!m.exato) continue;                                  // já tem o código exato dessa peça
+      if(!m.exato) aprox++;
+      c[m.i]=[String(r[col.di]??'').replace(/\.0$/,''),col.ds>=0?String(r[col.ds]||''):'',col.st>=0?String(r[col.st]||'ATIVO'):'ATIVO']; n++;
+    }
+    if(!n) throw new Error(`Nenhum código das caixas encontrado. Esperado: uma coluna "REFERENCIA" (ou "Cód. Eurotécnica") e uma coluna "Material" (código do distribuidor). Cabeçalho lido na linha ${hi+1}.`);
+    const ex=D.findIndex(x=>x.n===nome);
+    if(ex>=0){ D[ex].c=c; try{ localStorage.setItem('euro_cad_'+nome,JSON.stringify(c)); }catch(_){} }   // atualiza (mantém vendas e estoque)
+    else D.push({n:nome,vendas:0,c});
+    try{ localStorage.setItem('euro_dist_extra',JSON.stringify(D.filter(x=>!x.vendas).map(x=>Object.assign({},x,{e:undefined,lojas:undefined})))); }catch(_){}
+    S.dist=D.findIndex(x=>x.n===nome); popularDist(); desenharChips(); desenhar();
+    alert(`${nome}: cadastro ${ex>=0?'atualizado':'importado'} — ${Object.keys(c).length} códigos de caixa (${aprox} pelo código parecido${inativos?`, ${inativos} inativos ignorados`:''}).`);
   }catch(err){ alert('Não consegui importar: '+err.message); }
   e.target.value='';
 };
