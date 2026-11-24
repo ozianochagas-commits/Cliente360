@@ -403,7 +403,11 @@ function desenharDist(){
   const lojasVis=est?(d.lojas||[]).filter(l=>lojaOkD(d,l)):[];
   if(S.dFil&&!lojasVis.includes(S.dFil)) S.dFil=null;
   $('dFilSec').hidden=!(est&&lojasVis.length>1);
-  $('dFil').innerHTML=`<span class="chip ${S.dFil?'':'on'}" data-dfil="">Grupo todo (${lojasVis.length} filiais)</span>`+lojasVis.slice().sort().map(l=>{ const n=d.lj&&d.lj[l]?d.lj[l].n:''; return `<span class="chip ${S.dFil===l?'on':''}" data-dfil="${esc(l)}">${esc(n?n+' ('+l+')':l)}</span>`; }).join('');
+  // % de cada loja = parte dos códigos da seleção (montadora/caixas/grupo) que têm estoque nela; "Grupo todo" = códigos com estoque em alguma loja
+  const cobL={}; let cobG=0; const visSet=new Set(lojasVis);
+  if(est&&base.length){ base.forEach(i=>{ const e=d.e&&d.e[i]; if(!e) return; let any=false; for(const l in e){ if(e[l]>0&&visSet.has(l)){ cobL[l]=(cobL[l]||0)+1; any=true; } } if(any) cobG++; }); }
+  const pct=n=>base.length?Math.round(100*(n||0)/base.length)+'%':'—';
+  $('dFil').innerHTML=`<span class="chip ${S.dFil?'':'on'}" data-dfil="">Grupo todo (${lojasVis.length} filiais) <i>${pct(cobG)}</i></span>`+lojasVis.slice().sort().map(l=>{ const n=d.lj&&d.lj[l]?d.lj[l].n:''; return `<span class="chip ${S.dFil===l?'on':''}" data-dfil="${esc(l)}" title="${cobL[l]||0} de ${base.length} códigos com estoque nesta loja">${esc(n?n+' ('+l+')':l)} <i>${pct(cobL[l])}</i></span>`; }).join('');
   const vendF=i=>{ if(!S.dFil) return vp(i).q; const vm=d.vl&&d.vl[i]&&d.vl[i][S.dFil]; return vm?vm.slice(0,d.nm).reduce((a,x)=>a+x,0):0; };
   const eq=new Map(); if(est) base.forEach(i=>eq.set(i,estPart(d,i,null).q));
   const nab=new Map(); if(est) base.forEach(i=>{ const n=lojasAbaixoQA(d,i); if(n) nab.set(i,n); });
