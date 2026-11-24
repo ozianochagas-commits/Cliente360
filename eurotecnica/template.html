@@ -80,6 +80,18 @@ td.n,th.n{text-align:right}
 .pill{background:var(--verde-claro);color:var(--verde-esc);border-radius:6px;padding:4px 8px;font-weight:700}
 .link{color:var(--verde-esc);cursor:pointer;font-weight:700;text-decoration:underline}
 
+.tbl th.n{white-space:normal;line-height:1.2;min-width:70px}
+.tbl input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--verde)}
+.mais{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1.5px solid var(--verde);border-radius:50%;color:var(--verde);font-weight:900;line-height:1;cursor:pointer;user-select:none}
+.mais:hover,.mais.on{background:var(--verde);color:#fff}
+tr.sub td{background:#f6faf8;padding:8px 14px 10px 44px}
+.lj{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--borda);border-radius:6px;background:#fff;padding:3px 8px;margin:2px 4px 2px 0;font-size:12px}
+.lj b{font-size:13px}.lj.cd{border-color:var(--verde);background:var(--verde-claro)}
+.tchips{display:flex;gap:10px;flex-wrap:wrap;margin:-4px 0 12px}
+.tchip{border:1px solid var(--borda);border-radius:8px;background:#fff;padding:5px 12px;cursor:pointer;display:flex;gap:10px;align-items:center;font-size:12px;border-left:4px solid var(--c)}
+.tchip.on{outline:2px solid var(--verde)}.tchip.cd{border-left-color:var(--verde)}
+.tchip .pc{font-weight:800;font-size:15px}
+.st.a{background:var(--b)}
 .pg{display:grid;grid-template-columns:1fr 290px;gap:14px;margin-top:6px}
 .fabs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin:8px 0 14px}
 .fab{border:1px solid var(--borda);border-radius:8px;padding:10px 14px;background:#fff;cursor:pointer;border-left:4px solid var(--verde)}
@@ -130,6 +142,8 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
     <div id="gDist" class="row" style="margin:0" hidden>
       <div><label class="f">Distribuidor</label><br><select id="selDist" style="min-width:200px"></select></div>
       <div><label class="f">&nbsp;</label><br><button class="btn" id="btnImpDist">➕ Importar cadastro de distribuidor</button><input type="file" id="fileDist" accept=".xlsx,.xls" hidden></div>
+      <div><label class="f">&nbsp;</label><br><button class="btn sol" id="btnImpEst">📦 Importar estoque do distribuidor</button><input type="file" id="fileEst" accept=".xlsx,.xls" hidden></div>
+      <div id="gLeit"><label class="f">Leitura</label><br><select id="selLeit"><option value="est">Estoque (tem / sem estoque)</option><option value="cad">Cadastro (tem / não tem cadastrado)</option></select></div>
     </div>
     <div id="gPer"><label class="f">Período</label><br><select id="selPer"></select></div>
     <span class="pill" id="infoBase"></span>
@@ -162,6 +176,7 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
   </div>
 
   <div id="vDist" hidden>
+    <div id="dUfSec" hidden><div class="sec">Local (UF das lojas) — opcional <a id="dUfLimpar">LIMPAR</a></div><div class="chips" id="dUf"></div></div>
     <div class="kpis">
       <div class="kpi sel"><b id="dKSel">0</b><span>Códigos da fábrica na seleção</span></div>
       <div class="kpi ja"><b id="dKTem">0</b><span>Distribuidor tem</span></div>
@@ -169,11 +184,12 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
       <div class="kpi cob"><b id="dKCob">0%</b><span>Cobertura do distribuidor</span></div>
     </div>
     <div class="curvas" id="dCurvas"></div>
+    <div class="tchips" id="dTipo" hidden></div>
     <div class="tools">
       <span class="tit">Produtos <span id="dNProd" style="color:var(--cinza);font-weight:400"></span></span>
       <input type="text" id="dBusca" placeholder="Buscar código ou descrição…" style="width:240px">
-      <select id="dSelSt"><option value="">Todos os status</option><option value="n">Só o que o distribuidor NÃO tem</option><option value="s">Só o que o distribuidor tem</option><option value="sv">Tem cadastrado mas sem venda no período</option></select>
-      <button class="btn" id="dBtnExp">⬇ Exportar</button>
+      <select id="dSelSt"></select>
+      <button class="btn" id="dBtnExp" title="Exporta a lista (ou só os produtos marcados)">⬇ Exportar</button>
     </div>
     <div class="tbl"><table><thead id="dTh"></thead><tbody id="dTb"></tbody></table></div>
   </div>
@@ -229,6 +245,7 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
 const DATA = /*__DATA__*/null;
 let P = DATA.P, CX = DATA.CX, C = DATA.C, R = DATA.R, V = DATA.V, D = DATA.D || [];
 try{ (JSON.parse(localStorage.getItem('euro_dist_extra')||'[]')||[]).forEach(d=>D.push(d)); }catch(e){}
+D.forEach(d=>{ try{ const x=JSON.parse(localStorage.getItem('euro_estoque_'+d.n)||'null'); if(x&&x.e){ d.e=x.e; d.lojas=x.lojas||[]; } }catch(e){} });
 // P: [cod,desc,curva,grupo,linha,aplicacao,codPadreCicero,codOriginal,preco,vendaSuspensa]
 const $ = id => document.getElementById(id);
 const fmtR = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -239,7 +256,7 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const ordCurva = {AA:0,A:1,B:2,C:3,'Lançamento':4};
 const cls = c => c==='Lançamento'?'cL':'c'+c;
 
-const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli', visao:'cli', plFab:'', plPer:'', plBusca:'', dist:0, dSt:'', dBusca:'', dSort:['curva',1] };
+const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli', visao:'cli', plFab:'', plPer:'', plBusca:'', dist:0, dSt:'', dBusca:'', dSort:['curva',1], dLeit:'est', dTipo:null, dUf:new Set(), dOpen:new Set(), dMarc:new Set() };
 
 function indexar(){
   // vendas por cliente: Map cli -> Map part -> {q,v,last}   (respeita o período)
@@ -272,7 +289,7 @@ function selecaoPartes(){
   return [...set].filter(i=>!S.grp.size||S.grp.has(P[i][3]||'Outros'));
 }
 function cobCaixa(c){ // % do cliente (ou do distribuidor) nessa caixa
-  if(S.visao==='dist'){ const d=D[S.dist]; if(!d) return null; let n=0; c.p.forEach(i=>{ if(d.c[i]) n++; }); return Math.round(100*n/c.p.length); }
+  if(S.visao==='dist'){ const d=D[S.dist]; if(!d) return null; const est=d.e&&S.dLeit==='est'; let n=0; c.p.forEach(i=>{ if(est?estPart(d,i,null).q>0:d.c[i]) n++; }); return Math.round(100*n/c.p.length); }
   if(S.cli===null) return null; const m=S._idx.get(S.cli)||new Map();
   let n=0; c.p.forEach(i=>{ if(comprou(m.get(i))) n++; }); return Math.round(100*n/c.p.length);
 }
@@ -336,11 +353,33 @@ function desenharCliente(){
     :'<tr><td colspan="10" class="vazio">Nenhum produto na seleção.</td></tr>';
 }
 
+function tipoLojaD(d,l){ return d.cd&&d.cd.includes(l)?'CD':'V'; }
+function ufLojaD(d,l){ return (d.uf&&d.uf[l])||'—'; }
+const lojaOkD=(d,l)=>!S.dUf.size||S.dUf.has(ufLojaD(d,l));
+function estPart(d,i,tipo){ // estoque do código nas lojas (respeita UF e, se pedido, o tipo)
+  const e=d.e&&d.e[i]; const lj=[]; let q=0; if(!e) return {q,lj};
+  for(const l in e){ if(!lojaOkD(d,l)) continue; if(tipo&&tipoLojaD(d,l)!==tipo) continue; if(e[l]>0){ q+=e[l]; lj.push([l,e[l]]); } }
+  lj.sort((a,b)=>b[1]-a[1]); return {q,lj};
+}
 function desenharDist(){
-  const d=D[S.dist]; const base=selecaoPartes(); const tem=i=>d&&d.c[i]!==undefined;
+  const d=D[S.dist]; const temEst=!!(d&&d.e); const est=temEst&&S.dLeit==='est';
+  $('gLeit').hidden=!temEst; $('selLeit').value=S.dLeit;
+  const base=selecaoPartes(); const cad=i=>d&&d.c[i]!==undefined;
   const vend=d&&d.vendas; const vp=i=>S._vp.get(i)||{q:0,v:0,cl:new Set()};
   const sold=i=>vend&&vp(i).q>0;
+  const eq=new Map(); if(est) base.forEach(i=>eq.set(i,estPart(d,i,null).q));
+  const tem=est?(i=>eq.get(i)>0):cad;
+  // opções de status conforme a leitura
+  const opts=est?[['','Todos os status'],['n','Sem estoque (oportunidade)'],['s','Com estoque'],['nc','Não cadastrado'],['sc','Cadastrado sem estoque']]:[['','Todos os status'],['n','Só o que o distribuidor NÃO tem'],['s','Só o que o distribuidor tem'],['sv','Tem cadastrado mas sem venda no período']];
+  if($('dSelSt').dataset.m!==(est?'e':'c')){ $('dSelSt').innerHTML=opts.map(([v,t])=>`<option value="${v}">${t}</option>`).join(''); $('dSelSt').dataset.m=est?'e':'c'; S.dSt=''; }
+  $('dSelSt').value=S.dSt;
+  // UF das lojas (só leitura de estoque)
+  const ufs=est?[...new Set((d.lojas||[]).map(l=>ufLojaD(d,l)))].sort():[];
+  $('dUfSec').hidden=!(est&&ufs.length>1);
+  $('dUf').innerHTML=ufs.map(u=>`<span class="chip ${S.dUf.has(u)?'on':''}" data-duf="${u}">${u}</span>`).join('');
   const nTem=base.filter(tem).length;
+  const rot=est?['Códigos da fábrica na seleção','Com estoque','Sem estoque (fábrica tem)','Cobertura de estoque']:['Códigos da fábrica na seleção','Distribuidor tem','Fábrica tem e distribuidor não','Cobertura do distribuidor'];
+  document.querySelectorAll('#vDist .kpis .kpi span').forEach((el,k)=>el.textContent=rot[k]);
   $('dKSel').textContent=fmtN(base.length); $('dKTem').textContent=fmtN(nTem); $('dKNao').textContent=fmtN(base.length-nTem);
   $('dKCob').textContent=base.length?(100*nTem/base.length).toFixed(1)+'%':'—';
   const grupos=[['AA / A',['AA','A'],'--aa'],['B',['B'],'--b'],['C',['C'],'--c'],['Lançamentos',['Lançamento'],'--l']];
@@ -348,24 +387,48 @@ function desenharDist(){
     const t=base.filter(i=>cs.includes(P[i][2])), j=t.filter(tem); const pc=t.length?100*j.length/t.length:0;
     return `<div class="cv ${S.curva===nome?'on':''}" data-cv="${nome}"><h4><span>Curva ${nome}</span><span>${fmtN(t.length)} cód.</span></h4>
       <div class="pc" style="color:var(${cor})">${pc.toFixed(1)}%</div><div class="bar"><div style="width:${pc}%;background:var(${cor})"></div></div>
-      <small>${j.length} de ${t.length} códigos o distribuidor tem · faltam ${t.length-j.length}</small></div>`;}).join('');
-  let lista=base.slice(); const cvSel=grupos.find(g=>g[0]===S.curva); if(cvSel) lista=lista.filter(i=>cvSel[1].includes(P[i][2]));
-  if(S.dSt==='n') lista=lista.filter(i=>!tem(i)); else if(S.dSt==='s') lista=lista.filter(tem); else if(S.dSt==='sv') lista=lista.filter(i=>tem(i)&&!sold(i));
-  const q=S.dBusca.trim().toLowerCase(); if(q) lista=lista.filter(i=>(P[i][0]+' '+P[i][1]+' '+P[i][7]).toLowerCase().includes(q));
+      <small>${j.length} de ${t.length} códigos ${est?'com estoque':'o distribuidor tem'} · faltam ${t.length-j.length}</small></div>`;}).join('');
+  const cvSel=grupos.find(g=>g[0]===S.curva);
+  // Varejo × Atacado/CD (lojas Atacado/CD vêm da regra do distribuidor)
+  if(est&&d.cd&&d.cd.length){
+    const prod=cvSel?base.filter(i=>cvSel[1].includes(P[i][2])):base;
+    const dados=[['V','Varejo'],['CD','Atacado / CD']].map(([k,nome])=>{ let com=0,un=0;
+      prod.forEach(i=>{ const x=estPart(d,i,k); if(x.q>0){ com++; un+=x.q; } }); return {k,nome,com,un}; });
+    const tu=dados.reduce((a,x)=>a+x.un,0);
+    $('dTipo').hidden=false;
+    $('dTipo').innerHTML=dados.map(x=>`<div class="tchip ${x.k==='CD'?'cd':''} ${S.dTipo===x.k?'on':''}" data-tipo="${x.k}"><b>${x.nome}</b><span class="pc">${tu?(100*x.un/tu).toFixed(1):'0.0'}%</span><span>${fmtN(x.un)} un · cob. ${prod.length?(100*x.com/prod.length).toFixed(1):'0.0'}%</span></div>`).join('');
+  } else { $('dTipo').hidden=true; $('dTipo').innerHTML=''; if(S.dTipo) S.dTipo=null; }
+  let lista=base.slice(); if(cvSel) lista=lista.filter(i=>cvSel[1].includes(P[i][2]));
+  if(est&&S.dTipo) lista=lista.filter(i=>estPart(d,i,S.dTipo).q>0);
+  if(est){ if(S.dSt==='n') lista=lista.filter(i=>!tem(i)); else if(S.dSt==='s') lista=lista.filter(tem); else if(S.dSt==='nc') lista=lista.filter(i=>!cad(i)&&!tem(i)); else if(S.dSt==='sc') lista=lista.filter(i=>cad(i)&&!tem(i)); }
+  else { if(S.dSt==='n') lista=lista.filter(i=>!cad(i)); else if(S.dSt==='s') lista=lista.filter(cad); else if(S.dSt==='sv') lista=lista.filter(i=>cad(i)&&!sold(i)); }
+  const q=S.dBusca.trim().toLowerCase(); if(q) lista=lista.filter(i=>(P[i][0]+' '+P[i][1]+' '+P[i][7]+' '+(cad(i)?d.c[i][0]:'')).toLowerCase().includes(q));
   const cxDe=i=>CX.filter(c=>c.p.includes(i)&&(!S.cx.size||S.cx.has(c.n))).map(c=>c.n).join(', ');
-  const val=(i,k)=>({cod:P[i][0],desc:P[i][1],cx:cxDe(i),grupo:P[i][3],curva:ordCurva[P[i][2]]??9,st:tem(i)?1:0,dcod:tem(i)?d.c[i][0]:'',q:vp(i).q,v:vp(i).v,cl:vp(i).cl.size}[k]);
+  const codD=i=>cad(i)?d.c[i][0]:'';
+  if(est&&S.dSort[0]==='curva'&&!S._dSortUser) S.dSort=['est',-1];
+  const val=(i,k)=>({cod:P[i][0],desc:P[i][1],cx:cxDe(i),grupo:P[i][3],curva:ordCurva[P[i][2]]??9,st:tem(i)?1:0,dcod:codD(i),est:eq.get(i)||0,q:vp(i).q,cl:vp(i).cl.size}[k]);
   const [k,dir]=S.dSort; lista.sort((a,b)=>{const x=val(a,k),y=val(b,k); return (x>y?1:x<y?-1:0)*dir||(P[a][0]>P[b][0]?1:-1);});
   S._rowsD=lista;
-  const cols=[['cod','Código fábrica'],['desc','Produto'],['cx','Caixa(s)'],['grupo','Grupo'],['curva','Curva'],['st','Distribuidor'],['dcod','Cód. no distribuidor']];
-  if(vend) cols.push(['q','Qtd vendida','n'],['cl','Clientes','n']);
-  $('dTh').innerHTML='<tr>'+cols.map(([c,t,n])=>`<th class="${n||''}" data-ds="${c}">${t}${S.dSort[0]===c?(S.dSort[1]>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
+  const cols=est?[['','' ],['dcod','Cód. Padre Cícero'],['cod','Código fábrica'],['desc','Produto'],['cx','Caixa(s)'],['grupo','Grupo'],['curva','Curva'],['st','Status'],['chk',''],['est','Estoque geral','n'],['q','Vendido geral','n']]
+               :[['cod','Código fábrica'],['desc','Produto'],['cx','Caixa(s)'],['grupo','Grupo'],['curva','Curva'],['st','Distribuidor'],['dcod','Cód. no distribuidor']];
+  if(!est&&vend) cols.push(['q','Qtd vendida','n'],['cl','Clientes','n']);
+  if(est&&!vend){ cols.pop(); }
+  const todosMarc=lista.length&&lista.every(i=>S.dMarc.has(i));
+  $('dTh').innerHTML='<tr>'+cols.map(([c,t,n])=>c==='chk'?`<th style="width:34px"><input type="checkbox" id="dChkAll" title="Marcar / desmarcar todos" ${todosMarc?'checked':''}></th>`
+    :`<th class="${n||''}" ${c?`data-ds="${c}"`:''}>${t}${c?(S.dSort[0]===c?(S.dSort[1]>0?' ▲':' ▼'):' ↕'):''}</th>`).join('')+'</tr>';
   $('dNProd').textContent='('+fmtN(lista.length)+')';
-  $('dTb').innerHTML=lista.length?lista.slice(0,1500).map(i=>{const p=P[i], t=tem(i), y=vp(i);
+  const badge=p=>`<span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':p[2]}</span>`;
+  $('dTb').innerHTML=lista.length?lista.slice(0,1500).map(i=>{const p=P[i], y=vp(i);
+    if(est){ const e=eq.get(i)||0, c=cad(i); const aberto=S.dOpen.has(i);
+      let r=`<tr><td><span class="mais ${aberto?'on':''}" data-mais="${i}" title="Ver as lojas com estoque">${aberto?'−':'+'}</span></td><td>${esc(codD(i))}</td><td>${esc(p[0])}</td><td>${esc(p[1])}${p[9]?' <small style="color:var(--nao)">(venda suspensa)</small>':''}</td><td>${esc(cxDe(i))}</td><td>${esc(p[3])}</td><td>${badge(p)}</td>
+        <td><span class="st ${e>0?'s':c?'a':'n'}">${e>0?'Tem estoque':c?'Sem estoque':'Não cadastrado'}</span></td><td><input type="checkbox" data-dm="${i}" ${S.dMarc.has(i)?'checked':''}></td><td class="n"><b>${fmtN(e)}</b></td>${vend?`<td class="n">${y.q>0?fmtN(y.q):''}</td>`:''}</tr>`;
+      if(aberto){ const x=estPart(d,i,null); r+=`<tr class="sub"><td colspan="${cols.length}">${x.lj.length?x.lj.map(([l,qt])=>`<span class="lj ${tipoLojaD(d,l)==='CD'?'cd':''}"><b>${esc(l)}</b> ${esc(ufLojaD(d,l))} · ${tipoLojaD(d,l)==='CD'?'Atacado/CD':'Varejo'} · <b>${fmtN(qt)}</b> un</span>`).join(''):'<small>Sem estoque em nenhuma loja.</small>'}</td></tr>`; }
+      return r; }
+    const t=cad(i);
     return `<tr><td>${esc(p[0])}</td><td>${esc(p[1])}${p[9]?' <small style="color:var(--nao)">(venda suspensa)</small>':''}</td><td>${esc(cxDe(i))}</td><td>${esc(p[3])}</td>
-      <td><span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':p[2]}</span></td>
-      <td><span class="st ${t?'s':'n'}">${t?'Tem':'Não tem'}</span></td><td>${t?esc(d.c[i][0]):''}</td>
+      <td>${badge(p)}</td><td><span class="st ${t?'s':'n'}">${t?'Tem':'Não tem'}</span></td><td>${t?esc(d.c[i][0]):''}</td>
       ${vend?`<td class="n">${y.q>0?fmtN(y.q):''}</td><td class="n">${y.cl.size||''}</td>`:''}</tr>`;}).join('')
-    :'<tr><td colspan="10" class="vazio">Nenhum produto na seleção.</td></tr>';
+    :`<tr><td colspan="${cols.length}" class="vazio">Nenhum produto na seleção.</td></tr>`;
 }
 
 // ================= PLANO DE NEGÓCIO =================
@@ -487,14 +550,17 @@ function desenharCaixaCliente(){
 // ---- eventos
 function toggle(set,v){ set.has(v)?set.delete(v):set.add(v); }
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-m],[data-c],[data-g],[data-cv],[data-s],[data-ds],[data-v],[data-ci]'); if(!t){ $('ddCli').hidden=true; return; }
+  const t=e.target.closest('[data-m],[data-c],[data-g],[data-cv],[data-s],[data-ds],[data-v],[data-ci],[data-mais],[data-tipo],[data-duf]'); if(!t){ $('ddCli').hidden=true; return; }
   if(t.dataset.m!==undefined){ toggle(S.mont,t.dataset.m); S.cx=new Set([...S.cx].filter(n=>caixasVisiveis().some(c=>c.n===n))); desenharChips(); }
   else if(t.dataset.c!==undefined){ toggle(S.cx,t.dataset.c); desenharChips(); }
   else if(t.dataset.g!==undefined){ toggle(S.grp,t.dataset.g); desenharChips(); }
   else if(t.dataset.cv!==undefined){ S.curva=S.curva===t.dataset.cv?null:t.dataset.cv; }
   else if(t.dataset.v!==undefined){ S.view=t.dataset.v; }
   else if(t.dataset.ci!==undefined){ escolherCliente(+t.dataset.ci); S.view='cli'; }
-  else if(t.dataset.ds!==undefined){ S.dSort=[t.dataset.ds,S.dSort[0]===t.dataset.ds?-S.dSort[1]:1]; }
+  else if(t.dataset.mais!==undefined){ const i=+t.dataset.mais; S.dOpen.has(i)?S.dOpen.delete(i):S.dOpen.add(i); }
+  else if(t.dataset.tipo!==undefined){ S.dTipo=S.dTipo===t.dataset.tipo?null:t.dataset.tipo; }
+  else if(t.dataset.duf!==undefined){ toggle(S.dUf,t.dataset.duf); }
+  else if(t.dataset.ds!==undefined){ S._dSortUser=1; S.dSort=[t.dataset.ds,S.dSort[0]===t.dataset.ds?-S.dSort[1]:1]; }
   else if(t.dataset.s!==undefined){ const key=S.view==='cli'?'sortP':'sortX'; S[key]=[t.dataset.s,S[key][0]===t.dataset.s?-S[key][1]:1]; }
   desenhar();
 });
@@ -506,11 +572,39 @@ $('selPer').onchange=e=>{S.per=e.target.value;indexar();desenharChips();desenhar
 $('selRep').onchange=e=>{S.rep=+e.target.value; if(S.cli!==null&&S.rep>=0&&C[S.cli][4]!==S.rep) S.cli=null; $('inpCli').value=''; indexar(); desenharChips(); desenhar();};
 $('selVisao').onchange=e=>{S.visao=e.target.value;desenharChips();desenhar();};
 $('selDist').onchange=e=>{S.dist=+e.target.value;desenharChips();desenhar();};
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='dChkAll'){ S._rowsD.forEach(i=>t.checked?S.dMarc.add(i):S.dMarc.delete(i)); desenharDist(); }
+  else if(t.dataset&&t.dataset.dm!==undefined){ const i=+t.dataset.dm; t.checked?S.dMarc.add(i):S.dMarc.delete(i); desenharDist(); }
+});
+$('selLeit').onchange=e=>{S.dLeit=e.target.value;desenhar();};
+$('dUfLimpar').onclick=()=>{S.dUf.clear();desenhar();};
+// importar estoque do distribuidor selecionado: Produto (cód. dele), Referencia (cód. Eurotécnica), Descrição, Util.livre, Loja
+$('btnImpEst').onclick=()=>$('fileEst').click();
+$('fileEst').onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const wb=XLSX.read(await f.arrayBuffer(),{type:'array'}); const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true});
+    const h=rows[0]||[]; if(h[1]!=='Referencia'||h[5]!=='Loja') throw new Error('Layout diferente da planilha de estoque (Produto, Referencia, …, Util.livre, Loja).');
+    const d=D[S.dist]; const pidx=new Map(P.map((p,i)=>[p[0],i])); const E={}; const lojas=new Set(); let n=0;
+    for(const r of rows.slice(1)){ const l=String(r[5]||'').trim(); if(!l) continue; lojas.add(l);
+      const pi=pidx.get(String(r[1]||'').trim()); if(pi===undefined) continue;
+      if(!d.vendas&&!d.c[pi]) d.c[pi]=[String(r[0]??'').trim(),String(r[3]||''),'ATIVO'];   // aparece no sistema dele = cadastrado
+      const q=+r[4]||0; if(q>0){ (E[pi]=E[pi]||{})[l]=q; n++; } }
+    d.e=E; d.lojas=[...lojas].sort(); S.dLeit='est'; S.dUf.clear(); S.dTipo=null; S.dOpen.clear();
+    try{ localStorage.setItem('euro_estoque_'+d.n,JSON.stringify({e:E,lojas:d.lojas})); }catch(_){}
+    if(!d.vendas){ try{ localStorage.setItem('euro_dist_extra',JSON.stringify(D.filter(x=>!x.vendas).map(x=>Object.assign({},x,{e:undefined,lojas:undefined})))); }catch(_){} }
+    desenharChips(); desenhar(); alert(`${d.n}: estoque de ${Object.keys(E).length} códigos de caixa em ${lojas.size} lojas.`);
+  }catch(err){ alert('Não consegui importar: '+err.message); }
+  e.target.value='';
+};
 $('dBusca').oninput=e=>{S.dBusca=e.target.value;desenhar();};
 $('dSelSt').onchange=e=>{S.dSt=e.target.value;desenhar();};
-$('dBtnExp').onclick=()=>{ const d=D[S.dist]; const vp=i=>S._vp.get(i)||{q:0,v:0,cl:new Set()};
-  baixar(S._rowsD.map(i=>{const p=P[i],t=d.c[i]!==undefined,y=vp(i);return [p[0],p[1],p[3],p[2],t?'Tem':'Não tem',t?d.c[i][0]:'',d.vendas?y.q:'',d.vendas?y.cl.size:''];}),
-  ['Código fábrica','Produto','Grupo','Curva','Distribuidor','Cód. no distribuidor','Qtd vendida','Clientes'],'fabrica_x_'+d.n.replace(/\s+/g,'_')+'.xlsx'); };
+$('dBtnExp').onclick=()=>{ const d=D[S.dist]; const vp=i=>S._vp.get(i)||{q:0,v:0,cl:new Set()}; const est=d.e&&S.dLeit==='est';
+  const rows=S.dMarc.size?S._rowsD.filter(i=>S.dMarc.has(i)):S._rowsD;
+  const cab=['Código fábrica','Produto','Grupo','Curva','Cadastro no distribuidor','Cód. no distribuidor']; if(est) cab.push('Estoque geral'); if(d.vendas) cab.push('Vendido geral','Clientes');
+  baixar(rows.map(i=>{const p=P[i],t=d.c[i]!==undefined,y=vp(i); const r=[p[0],p[1],p[3],p[2],t?'Tem':'Não tem',t?d.c[i][0]:'']; if(est) r.push(estPart(d,i,null).q); if(d.vendas) r.push(y.q,y.cl.size); return r;}),
+  cab,'fabrica_x_'+d.n.replace(/\s+/g,'_')+'.xlsx'); };
 // importar cadastro de outro distribuidor: coluna A = Cód. Eurotécnica, coluna B = Cód. do distribuidor
 $('btnImpDist').onclick=()=>$('fileDist').click();
 $('fileDist').onchange=async e=>{

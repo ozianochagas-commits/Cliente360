@@ -6,6 +6,7 @@ import sys, json, datetime, collections, os
 import openpyxl
 
 caixas_xlsx, vendas_xlsx = sys.argv[1], sys.argv[2]
+estoque_xlsx = sys.argv[3] if len(sys.argv) > 3 else None
 here = os.path.dirname(os.path.abspath(__file__))
 SKIP = {'Análise Caixas', 'Lista', 'Cadastro Padre Cícero'}
 
@@ -57,6 +58,7 @@ cli, cidx, reps, ridx = [], {}, [], {}
 agg = collections.defaultdict(lambda: [0, 0.0, 0])
 tot = collections.defaultdict(float)
 lastrep = {}
+centro_uf = collections.defaultdict(collections.Counter)
 for r in rows[1:]:
     d = dt(r[15]); cod = s(r[23])
     if not d or not r[16]: continue
@@ -67,6 +69,7 @@ for r in rows[1:]:
         cidx[c] = len(cli); cli.append([c, s(r[17]), s(r[25]).title(), s(r[27]), ridx[rep]])
     ci = cidx[c]
     if ci not in lastrep or d >= lastrep[ci][0]: lastrep[ci] = (d, ridx[rep]); cli[ci][4] = ridx[rep]
+    centro_uf[s(r[1])][s(r[27])] += 1
     tk = (ci, d.strftime('%Y-%m')); tot[tk] += r[14] or 0   # faturamento total (todas as peças) p/ Plano de Negócio
     if cod not in pidx: continue
     k = (ci, pidx[cod], d.strftime('%Y-%m'))
@@ -77,6 +80,21 @@ dpc = {}
 for cod, (c, desc, sit) in pc.items():
     if cod in pidx: dpc[pidx[cod]] = [c, desc, sit]
 D = [{'n': 'Padre Cícero', 'vendas': 1, 'c': dpc}]
+if estoque_xlsx:  # estoque livre por loja (planilha "ESTOQUE_EUROTECNICA": Produto, Referencia, ..., Util.livre, Loja)
+    ew = openpyxl.load_workbook(estoque_xlsx, read_only=True, data_only=True).active
+    erows = list(ew.iter_rows(values_only=True))
+    assert erows[0][1] == 'Referencia' and erows[0][5] == 'Loja', 'layout de estoque inesperado'
+    E, lojas = {}, set()
+    for r in erows[1:]:
+        loja = s(r[5])
+        if not loja: continue
+        lojas.add(loja)
+        pi = pidx.get(s(r[1]))
+        if pi is not None and (r[4] or 0) > 0:
+            E.setdefault(str(pi), {})[loja] = r[4]
+    D[0].update({'e': E, 'lojas': sorted(lojas),
+                 'cd': ['F004', 'F017', 'F019', 'F026', 'F031', 'F035', 'F038', 'F041', 'F043'],   # lojas Atacado/CD (mesma regra do Cliente 360 da Rio)
+                 'uf': {k: v.most_common(1)[0][0] for k, v in centro_uf.items()}})
 T = [[k[0], k[1], round(v, 2)] for k, v in tot.items()]
 data = {'P': parts, 'CX': caixas, 'C': cli, 'R': reps, 'V': V, 'D': D, 'T': T}
 tpl = open(os.path.join(here, 'template.html'), encoding='utf-8').read()
