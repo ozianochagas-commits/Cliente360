@@ -231,6 +231,8 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
       <button class="btn sol" id="plNovo">➕ Cadastrar novo plano</button>
       <button class="btn" id="plFab">🏭 Nova fábrica</button>
       <button class="btn" id="plExp">⬇ Exportar</button>
+      <button class="btn" id="plAtualizar" title="Buscar os planos mais recentes salvos no sistema">↻ Atualizar</button>
+      <span id="plNuvem" style="font-size:12px;font-weight:700"></span>
     </div>
     <div class="tools">
       <select id="plSelFab"></select>
@@ -598,6 +600,47 @@ try{ PL=JSON.parse(localStorage.getItem('euro_planos')||'[]')||[]; }catch(e){}
 try{ const f=JSON.parse(localStorage.getItem('euro_fabricas')||'[]')||[]; f.forEach(x=>{ if(!FB.includes(x)) FB.push(x); }); }catch(e){}
 PL.forEach(p=>{ if(p.fab&&!FB.includes(p.fab)) FB.push(p.fab); });
 const salvarPl=()=>{ try{ localStorage.setItem('euro_planos',JSON.stringify(PL)); localStorage.setItem('euro_fabricas',JSON.stringify(FB.filter(f=>f!=='Eurotécnica'))); }catch(e){} };
+// ---- planos salvos no sistema (Supabase, mesmo banco do rastreio de visitas); o navegador guarda só uma cópia de segurança
+const SB_URL='https://pojfdvniqsggialenfca.supabase.co', SB_KEY='sb_publishable_ms8aRd2ui8osh3MqE6RJYw_s4WA4Cd2';
+async function sb(caminho,opcoes){
+  const r=await fetch(SB_URL+'/rest/v1/'+caminho,Object.assign({},opcoes,{headers:Object.assign({apikey:SB_KEY,'Content-Type':'application/json'},(opcoes&&opcoes.headers)||{})}));
+  const t=await r.text(); if(!r.ok) throw new Error(r.status+' '+t.slice(0,100)); return t?JSON.parse(t):null;
+}
+const plParaNuvem=p=>({id:p.id,fab:p.fab,nome:p.nome,cod:p.cod||'',per:p.per||'ANO',meta:p.meta||0,rebate:p.rebate||0,fat:p.fat==null?null:p.fat,atualizado_em:new Date().toISOString()});
+const plDaNuvem=r=>({id:r.id,fab:r.fab,nome:r.nome,cod:r.cod||'',per:r.per||'ANO',meta:+r.meta||0,rebate:+r.rebate||0,fat:r.fat==null?null:+r.fat});
+function nuvemStatus(estado,msg){ const el=$('plNuvem'); if(!el) return;
+  el.textContent=estado==='ok'?'☁ Salvo no sistema':estado==='carregando'?'☁ Sincronizando…':'⚠ Sem conexão com o sistema: salvo só neste navegador';
+  el.style.color=estado==='ok'?'var(--verde-esc)':estado==='offline'?'var(--nao)':'var(--cinza)'; el.title=msg||''; }
+async function nuvemCarregar(){
+  nuvemStatus('carregando');
+  try{
+    const [pls,fbs]=await Promise.all([sb('euro_planos?select=*&order=atualizado_em.asc'),sb('euro_fabricas?select=*&order=criado_em.asc')]);
+    const naNuvem=new Set(pls.map(r=>r.id)), nomesNuvem=new Set(fbs.map(f=>f.nome));
+    let migrado=false; try{ migrado=localStorage.getItem('euro_planos_migrado')==='1'; }catch(e){}
+    // 1ª vez neste navegador (ou alterações feitas sem conexão): envia o que só existe aqui, sem apagar nada do sistema
+    const enviar=PL.filter(p=>!naNuvem.has(p.id)&&(!migrado||p._pend));
+    const fabsNovas=migrado?[]:FB.filter(f=>f!=='Eurotécnica'&&!nomesNuvem.has(f));
+    if(fabsNovas.length||enviar.length){
+      const todas=[...new Set([...fabsNovas,...enviar.map(p=>p.fab)])].filter(f=>!nomesNuvem.has(f));
+      if(todas.length) await sb('euro_fabricas?on_conflict=nome',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify(todas.map(nome=>({nome})))});
+      if(enviar.length){ await sb('euro_planos?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(enviar.map(plParaNuvem))}); enviar.forEach(p=>{ pls.push(plParaNuvem(p)); }); }
+      fabsNovas.forEach(f=>fbs.push({nome:f}));
+    }
+    PL=pls.map(plDaNuvem);
+    FB=['Eurotécnica',...new Set([...fbs.map(f=>f.nome),...PL.map(p=>p.fab)].filter(f=>f&&f!=='Eurotécnica'))];
+    salvarPl(); try{ localStorage.setItem('euro_planos_migrado','1'); }catch(e){}
+    nuvemStatus('ok'); desenharPlano();
+  }catch(e){ nuvemStatus('offline',e.message); }
+}
+async function nuvemSalvarPlano(p){
+  try{
+    await sb('euro_fabricas?on_conflict=nome',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify([{nome:p.fab}])});
+    await sb('euro_planos?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([plParaNuvem(p)])});
+    delete p._pend; salvarPl(); nuvemStatus('ok');
+  }catch(e){ p._pend=1; salvarPl(); nuvemStatus('offline',e.message); }
+}
+async function nuvemExcluirPlano(id){ try{ await sb('euro_planos?id=eq.'+encodeURIComponent(id),{method:'DELETE'}); nuvemStatus('ok'); }catch(e){ nuvemStatus('offline','Não consegui excluir no sistema ('+e.message+'): o plano volta na próxima atualização.'); } }
+async function nuvemSalvarFabrica(n){ try{ await sb('euro_fabricas?on_conflict=nome',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify([{nome:n}])}); nuvemStatus('ok'); }catch(e){ nuvemStatus('offline',e.message); } }
 const numBR=t=>{ t=String(t||'').replace(/R\$|\s/g,''); if(!t) return null; if(t.includes(',')) t=t.replace(/\./g,'').replace(',','.'); const n=parseFloat(t); return isNaN(n)?null:n; };
 const anoBase=()=>Math.max(...T.map(t=>+t[1].slice(0,4)),new Date().getFullYear());
 function fatAuto(pl){ // soma das vendas dos clientes (códigos) no período do plano
@@ -662,7 +705,7 @@ function abrirPlano(id){
   $('mNome').value=p.nome||''; $('mCod').value=p.cod||''; $('mMeta').value=p.meta!=null?String(p.meta).replace('.',','):''; $('mRebate').value=p.rebate!=null?String(p.rebate).replace('.',','):''; $('mFat').value=p.fat!=null?String(p.fat).replace('.',','):'';
   $('plModal').hidden=false; $('mNome').focus();
 }
-function novaFabrica(){ const n=(prompt('Nome da nova fábrica:')||'').trim(); if(!n) return null; if(!FB.includes(n)) FB.push(n); salvarPl(); return n; }
+function novaFabrica(){ const n=(prompt('Nome da nova fábrica:')||'').trim(); if(!n) return null; if(!FB.includes(n)){ FB.push(n); salvarPl(); nuvemSalvarFabrica(n); } return n; }
 $('plNovo').onclick=()=>abrirPlano(null);
 $('plFab').onclick=()=>{ if(novaFabrica()) desenharPlano(); };
 $('mCancel').onclick=()=>{ $('plModal').hidden=true; };
@@ -673,7 +716,7 @@ $('mSalvar').onclick=()=>{
   if(meta===null&&rebate===null){ alert('Informe a Meta Plano e/ou a Meta Rebate.'); return; }
   const pl={id:S._plEdit||('p'+Date.now()),fab:$('mFab').value,nome,cod:$('mCod').value.trim(),per:$('mPer').value,meta:meta||0,rebate:rebate||0,fat:numBR($('mFat').value)};
   const i=PL.findIndex(x=>x.id===pl.id); if(i>=0) PL[i]=pl; else PL.push(pl);
-  salvarPl(); $('plModal').hidden=true; desenharPlano();
+  salvarPl(); $('plModal').hidden=true; desenharPlano(); nuvemSalvarPlano(pl);
 };
 $('plSelFab').onchange=e=>{S.plFab=e.target.value;desenharPlano();};
 $('plSelPer').onchange=e=>{S.plPer=e.target.value;desenharPlano();};
@@ -683,8 +726,10 @@ $('plVoltar').onclick=()=>{ S.plFab=''; S.plBusca=''; $('plBusca').value=''; des
 $('plTb').addEventListener('click',e=>{
   const ed=e.target.closest('[data-pe]'), de=e.target.closest('[data-pd]');
   if(ed) abrirPlano(ed.dataset.pe);
-  if(de&&confirm('Excluir este plano?')){ PL=PL.filter(x=>x.id!==de.dataset.pd); salvarPl(); desenharPlano(); }
+  if(de&&confirm('Excluir este plano?')){ PL=PL.filter(x=>x.id!==de.dataset.pd); salvarPl(); desenharPlano(); nuvemExcluirPlano(de.dataset.pd); }
 });
+$('plAtualizar').onclick=()=>nuvemCarregar();
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) nuvemCarregar(); });   // ao voltar para a aba, busca o que outros cadastraram
 $('plExp').onclick=()=>baixar(S._rowsPl.map(p=>[p.uf,p.fab,p.nome,p.cod,PER[p.per||'ANO'][2],p.fat,p.meta,p.falta,+p.pct.toFixed(1),p.rebate,p.faltaR,+p.pctR.toFixed(1)]),
   ['UF','Fábrica','Plano / cliente','Cód. cliente','Período','Faturado','Meta plano','Falta plano','% Plano','Meta rebate','Falta rebate','% Rebate'],'plano_de_negocio.xlsx');
 
@@ -932,6 +977,7 @@ function restaurarEstado(){
 }
 ['click','change','input'].forEach(ev=>document.addEventListener(ev,()=>setTimeout(salvarEstado,0)));
 iniciar();
+nuvemCarregar();
 </script>
 </body>
 </html>
