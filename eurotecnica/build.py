@@ -59,6 +59,7 @@ agg = collections.defaultdict(lambda: [0, 0.0, 0])
 tot = collections.defaultdict(float)
 lastrep = {}
 centro_uf = collections.defaultdict(collections.Counter)
+vl = collections.defaultdict(lambda: [0.0] * 12)   # (peça, loja, ano) -> qtd vendida por mês
 for r in rows[1:]:
     d = dt(r[15]); cod = s(r[23])
     if not d or not r[16]: continue
@@ -72,6 +73,7 @@ for r in rows[1:]:
     centro_uf[s(r[1])][s(r[27])] += 1
     tk = (ci, d.strftime('%Y-%m')); tot[tk] += r[14] or 0   # faturamento total (todas as peças) p/ Plano de Negócio
     if cod not in pidx: continue
+    vl[(pidx[cod], s(r[1]), d.year)][d.month - 1] += r[3] or 0
     k = (ci, pidx[cod], d.strftime('%Y-%m'))
     a = agg[k]; a[0] += r[3] or 0; a[1] += r[14] or 0; a[2] = max(a[2], (d - datetime.datetime(1899, 12, 30)).days)
 V = [[k[0], k[1], k[2], round(a[0], 3), round(a[1], 2), a[2]] for k, a in agg.items()]
@@ -92,7 +94,13 @@ if estoque_xlsx:  # estoque livre por loja (planilha "ESTOQUE_EUROTECNICA": Prod
         pi = pidx.get(s(r[1]))
         if pi is not None and (r[4] or 0) > 0:
             E.setdefault(str(pi), {})[loja] = r[4]
-    D[0].update({'e': E, 'lojas': sorted(lojas),
+    lj = json.load(open(os.path.join(here, 'lojas_padre_cicero.json'), encoding='utf-8'))   # nome e cidade das lojas (mesma lista do Cliente 360 da Rio)
+    ano = max(k[2] for k in vl) if vl else None
+    VL = {}
+    for (pi, loja, y), meses in vl.items():
+        if y == ano and any(meses): VL.setdefault(str(pi), {})[loja] = [round(x, 3) for x in meses]
+    nm = max((i + 1 for m in VL.values() for ms in m.values() for i, x in enumerate(ms) if x), default=0)
+    D[0].update({'lj': lj, 'vl': VL, 'nm': nm, 'e': E, 'lojas': sorted(lojas),
                  'cd': ['F004', 'F017', 'F019', 'F026', 'F031', 'F035', 'F038', 'F041', 'F043'],   # lojas Atacado/CD (mesma regra do Cliente 360 da Rio)
                  'uf': {k: v.most_common(1)[0][0] for k, v in centro_uf.items()}})
 T = [[k[0], k[1], round(v, 2)] for k, v in tot.items()]
