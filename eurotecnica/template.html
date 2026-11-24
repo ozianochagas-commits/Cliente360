@@ -53,7 +53,7 @@ select,input[type=text]{border:1px solid #c9ced4;border-radius:6px;padding:6px 8
 .kpi.sel{border:2px solid var(--verde);background:var(--verde-claro)}.kpi.sel b{color:var(--verde-esc)}
 .kpi.ja b{color:var(--ok)}.kpi.op b{color:var(--nao)}
 .kpi.cob{background:var(--verde);border-color:var(--verde);color:#fff}.kpi.cob span{color:#d6f2e3}
-.curvas{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.curvas{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
 .cv{border:1px solid var(--borda);border-radius:8px;padding:10px 14px;background:#fff;cursor:pointer}
 .cv.on{outline:2px solid var(--verde)}
 .cv h4{margin:0;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px;font-weight:800;text-transform:uppercase}
@@ -72,7 +72,7 @@ td.cod{white-space:nowrap}
 tr:hover td{background:#f7fbf9}
 td.n,th.n{text-align:right}
 .badge{display:inline-block;min-width:26px;text-align:center;border-radius:4px;color:#fff;font-weight:800;font-size:11px;padding:1px 6px}
-.cAA{background:var(--aa)}.cA{background:var(--a)}.cB{background:var(--b)}.cC{background:var(--c)}.cL{background:var(--l)}
+.badge.c{background:#9aa3a8}.cAA{background:var(--aa)}.cA{background:var(--a)}.cB{background:var(--b)}.cC{background:var(--c)}.cL{background:var(--l)}
 .st{border-radius:4px;font-size:11px;font-weight:800;padding:2px 8px;color:#fff;white-space:nowrap}
 .st.s{background:var(--ok)}.st.n{background:var(--nao)}
 .vazio{padding:40px;text-align:center;color:var(--cinza)}
@@ -161,9 +161,10 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
 
   <div id="gFiltros">
   <div class="sec">Montadora <a id="limpM">LIMPAR</a></div><div class="chips" id="chM"></div>
-  <div class="sec">Caixas (selecione uma ou mais) <a id="selTodas">SELECIONAR TODAS</a><a id="limpC">LIMPAR</a></div>
+  <div class="sec">Caixas e famílias sem caixa (selecione uma ou mais) <a id="selTodas">SELECIONAR TODAS</a><a id="limpC">LIMPAR</a></div>
   <div class="chips" id="chC"></div>
   <div class="sec">Grupo de peça (opcional) <a id="limpG">LIMPAR</a></div><div class="chips" id="chG"></div>
+  <div class="sec">Linha (opcional) <a id="limpL">LIMPAR</a></div><div class="chips" id="chL"></div>
   </div>
 
   <div id="vCli">
@@ -268,7 +269,7 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const ordCurva = {AA:0,A:1,B:2,C:3,'Lançamento':4};
 const cls = c => c==='Lançamento'?'cL':'c'+c;
 
-const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli', visao:'cli', plFab:'', plPer:'', plBusca:'', dist:0, dSt:'', dBusca:'', dSort:['curva',1], dLeit:'est', dTipo:null, dUf:new Set(), dOpen:new Set(), dMarc:new Set(), dSoSel:false, dFil:null };
+const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), lin:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli', visao:'cli', plFab:'', plPer:'', plBusca:'', dist:0, dSt:'', dBusca:'', dSort:['curva',1], dLeit:'est', dTipo:null, dUf:new Set(), dOpen:new Set(), dMarc:new Set(), dSoSel:false, dFil:null };
 
 function indexar(){
   // vendas por cliente: Map cli -> Map part -> {q,v,last}   (respeita o período)
@@ -299,7 +300,7 @@ function caixasVisiveis(){ return CX.filter(c=>!S.mont.size||S.mont.has(c.m)); }
 function selecaoPartes(){
   let cxs = S.cx.size ? CX.filter(c=>S.cx.has(c.n)) : caixasVisiveis();
   const set=new Set(); cxs.forEach(c=>c.p.forEach(i=>set.add(i)));
-  return [...set].filter(i=>!S.grp.size||S.grp.has(P[i][3]||'Outros'));
+  return [...set].filter(i=>(!S.grp.size||S.grp.has(P[i][3]||'Outros'))&&(!S.lin.size||S.lin.has(P[i][4]||'—')));
 }
 function cobCaixa(c){ // % do cliente (ou do distribuidor) nessa caixa
   if(S.visao==='dist'){ const d=D[S.dist]; if(!d) return null; const est=d.e&&S.dLeit==='est'; let n=0; c.p.forEach(i=>{ if(est?estPart(d,i,null).q>0:d.c[i]) n++; }); return Math.round(100*n/c.p.length); }
@@ -313,6 +314,8 @@ function desenharChips(){
   $('chC').innerHTML=caixasVisiveis().map(c=>{ const p=cobCaixa(c);
     return `<span class="chip ${S.cx.has(c.n)?'on':''}" data-c="${esc(c.n)}">${esc(c.n)}${p!==null?`<i>${p}%</i>`:`<i>${c.p.length}</i>`}</span>`; }).join('');
   const gr={}; CX.forEach(c=>c.p.forEach(i=>{const g=P[i][3]||'Outros'; gr[g]=(gr[g]||0)+1;}));
+  const ln={}; P.forEach(x=>{ const l=x[4]||'—'; ln[l]=(ln[l]||0)+1; });
+  $('chL').innerHTML=Object.keys(ln).sort((a,b)=>ln[b]-ln[a]).map(l=>`<span class="chip ${S.lin.has(l)?'on':''}" data-l="${esc(l)}">${esc(l)}<i>${ln[l]}</i></span>`).join('');
   $('chG').innerHTML=Object.keys(gr).sort().map(g=>`<span class="chip ${S.grp.has(g)?'on':''}" data-g="${esc(g)}">${esc(g)}</span>`).join('');
 }
 
@@ -339,10 +342,11 @@ function desenharCliente(){
   $('kOp').textContent=S.cli!==null?fmtN(base.length-ja.length):'—';
   $('kCob').textContent=S.cli!==null&&base.length?(100*ja.length/base.length).toFixed(1)+'%':'—';
   const grupos=[['AA / A',['AA','A'],'--aa'],['B',['B'],'--b'],['C',['C'],'--c'],['Lançamentos',['Lançamento'],'--l']];
+  if(base.some(i=>!P[i][2])) grupos.push(['Sem curva',[''],'--c']);
   $('curvas').innerHTML=grupos.map(([nome,cs,cor])=>{
     const t=base.filter(i=>cs.includes(P[i][2])), j=t.filter(i=>comprou(m.get(i)));
     const pc=t.length&&S.cli!==null?100*j.length/t.length:0;
-    return `<div class="cv ${S.curva===nome?'on':''}" data-cv="${nome}"><h4><span>Curva ${nome}</span><span>${fmtN(t.length)} cód.</span></h4>
+    return `<div class="cv ${S.curva===nome?'on':''}" data-cv="${nome}"><h4><span>${nome==='Sem curva'?nome:'Curva '+nome}</span><span>${fmtN(t.length)} cód.</span></h4>
       <div class="pc" style="color:var(${cor})">${S.cli!==null?pc.toFixed(1)+'%':'—'}</div>
       <div class="bar"><div style="width:${pc}%;background:var(${cor})"></div></div><small>${j.length} de ${t.length} códigos comprados</small></div>`;}).join('');
   let lista=base.slice();
@@ -358,9 +362,9 @@ function desenharCliente(){
   const cols=[['cod','Código'],['desc','Produto'],['qa','Qtd. aplicada','n'],['cx','Caixa(s)'],['grupo','Grupo'],['pc','Cód. Padre Cícero'],['curva','Curva'],['st','Status'],['q','Qtd comprada','n'],['last','Última compra']];
   $('thP').innerHTML='<tr>'+cols.map(([k,t,n])=>`<th class="${n||''}" data-s="${k}">${t}${S.sortP[0]===k?(S.sortP[1]>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
   $('nProd').textContent='('+fmtN(lista.length)+')';
-  $('tbP').innerHTML=lista.length?lista.slice(0,1500).map(i=>{const x=m.get(i), ok=comprou(x), p=P[i];
+  $('tbP').innerHTML=lista.length?lista.slice(0,6000).map(i=>{const x=m.get(i), ok=comprou(x), p=P[i];
     return `<tr><td class="cod">${esc(p[0])}</td><td>${esc(p[1])}${p[9]?' <small style="color:var(--nao)">(venda suspensa)</small>':''}</td><td class="n"><b>${P[i][10]}</b></td><td>${esc(cxDe(i))}</td><td>${esc(p[3])}</td><td class="cod">${esc(p[6])}</td>
-      <td><span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':p[2]}</span></td>
+      <td><span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':(p[2]||'—')}</span></td>
       <td>${S.cli===null?'—':`<span class="st ${ok?'s':(x&&x.g>0)?'a':'n'}" ${(!ok&&x&&x.g>0)?'title="Comprou e devolveu"':''}>${ok?'Compra':(x&&x.g>0)?'Devolveu':'Não compra'}</span>`}</td>
       <td class="n">${ok?fmtN(x.q):(S.cli===null?'':'<span style="color:#c4c9c6">0</span>')}</td><td>${ok&&x.last?serial2str(x.last):''}</td></tr>`;}).join('')
     :'<tr><td colspan="10" class="vazio">Nenhum produto na seleção.</td></tr>';
@@ -427,9 +431,10 @@ function desenharDist(){
   $('dKSel').textContent=fmtN(base.length); $('dKTem').textContent=fmtN(nTem); $('dKNao').textContent=fmtN(base.length-nTem);
   $('dKCob').textContent=base.length?(100*nTem/base.length).toFixed(1)+'%':'—';
   const grupos=[['AA / A',['AA','A'],'--aa'],['B',['B'],'--b'],['C',['C'],'--c'],['Lançamentos',['Lançamento'],'--l']];
+  if(base.some(i=>!P[i][2])) grupos.push(['Sem curva',[''],'--c']);
   $('dCurvas').innerHTML=grupos.map(([nome,cs,cor])=>{
     const t=base.filter(i=>cs.includes(P[i][2])), j=t.filter(tem); const pc=t.length?100*j.length/t.length:0;
-    return `<div class="cv ${S.curva===nome?'on':''}" data-cv="${nome}"><h4><span>Curva ${nome}</span><span>${fmtN(t.length)} cód.</span></h4>
+    return `<div class="cv ${S.curva===nome?'on':''}" data-cv="${nome}"><h4><span>${nome==='Sem curva'?nome:'Curva '+nome}</span><span>${fmtN(t.length)} cód.</span></h4>
       <div class="pc" style="color:var(${cor})">${pc.toFixed(1)}%</div><div class="bar"><div style="width:${pc}%;background:var(${cor})"></div></div>
       <small>${j.length} de ${t.length} códigos ${est?'com estoque':'o distribuidor tem'} · faltam ${t.length-j.length}</small></div>`;}).join('');
   const cvSel=grupos.find(g=>g[0]===S.curva);
@@ -468,8 +473,8 @@ function desenharDist(){
   $('dBtnSoSel').hidden=!nM; $('dBtnSoSel').textContent=S.dSoSel?`☑ Só selecionados (${nM}) · ver todos`:`☑ Só selecionados (${nM})`;
   $('dBtnSoSel').style.background=S.dSoSel?'var(--verde-claro)':'';
   $('dBtnRepo').hidden=!(est&&d.vl); $('dBtnRepo').textContent=nM?`📦 Reposição (${nM})`:'📦 Reposição';
-  const badge=p=>`<span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':p[2]}</span>`;
-  $('dTb').innerHTML=lista.length?lista.slice(0,1500).map(i=>{const p=P[i], y=vp(i);
+  const badge=p=>`<span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':(p[2]||'—')}</span>`;
+  $('dTb').innerHTML=lista.length?lista.slice(0,6000).map(i=>{const p=P[i], y=vp(i);
     if(est){ const e=eq.get(i)||0, c=cad(i); const aberto=S.dOpen.has(i);
       let r=`<tr><td><span class="mais ${aberto?'on':''}" data-mais="${i}" title="Ver as lojas com estoque">${aberto?'−':'+'}</span></td><td class="cod">${esc(codD(i))}</td><td class="cod">${esc(p[0])}</td><td>${esc(p[1])}${p[9]?' <small style="color:var(--nao)">(venda suspensa)</small>':''}</td><td class="n"><b>${P[i][10]}</b></td><td>${esc(cxDe(i))}</td><td>${esc(p[3])}</td><td>${badge(p)}</td>
         <td><span class="st ${e>0?'s':c?'a':'n'}">${e>0?'Tem estoque':c?'Sem estoque':'Não cadastrado'}</span></td><td><input type="checkbox" data-dm="${i}" ${S.dMarc.has(i)?'checked':''}></td><td class="n">${nab.get(i)?`<span class="alerta" title="${nab.get(i)} loja(s) com estoque abaixo da quantidade aplicada (${P[i][10]}) — abra o + para ver">⚠</span>`:''}<b>${fmtN(e)}</b></td>${vend?`<td class="n">${vendF(i)>0?fmtN(vendF(i)):'<span style="color:#c4c9c6">0</span>'}</td>`:''}</tr>`;
@@ -593,7 +598,7 @@ function desenharCaixaCliente(){
   S._rowsX=linhas; $('nCx').textContent='('+fmtN(linhas.length)+' clientes · '+fmtN(base.size)+' códigos na seleção)';
   const cols=[['nome','Cliente'],['cid','Cidade'],['rep','Representante'],['n','Códigos comprados','n'],['cob','Cobertura','n'],['last','Última compra']];
   $('thX').innerHTML='<tr>'+cols.map(([k,t,n])=>`<th class="${n||''}" data-s="${k}">${t}${S.sortX[0]===k?(S.sortX[1]>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
-  $('tbX').innerHTML=linhas.length?linhas.slice(0,1500).map(l=>`<tr><td><span class="link" data-ci="${l.ci}">${esc(l.nome)}</span> <small style="color:var(--cinza)">${esc(l.cod)}</small></td><td>${esc(l.cid)}</td><td>${esc(l.rep)}</td>
+  $('tbX').innerHTML=linhas.length?linhas.slice(0,6000).map(l=>`<tr><td><span class="link" data-ci="${l.ci}">${esc(l.nome)}</span> <small style="color:var(--cinza)">${esc(l.cod)}</small></td><td>${esc(l.cid)}</td><td>${esc(l.rep)}</td>
     <td class="n">${l.n} / ${l.tot}</td><td class="n"><b>${l.cob.toFixed(1)}%</b></td><td>${l.last?serial2str(l.last):''}</td></tr>`).join('')
     :'<tr><td colspan="7" class="vazio">Nenhum cliente comprou peças desta seleção no período.</td></tr>';
 }
@@ -601,10 +606,11 @@ function desenharCaixaCliente(){
 // ---- eventos
 function toggle(set,v){ set.has(v)?set.delete(v):set.add(v); }
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-m],[data-c],[data-g],[data-cv],[data-s],[data-ds],[data-v],[data-ci],[data-mais],[data-tipo],[data-duf],[data-dfil]'); if(!t){ $('ddCli').hidden=true; return; }
+  const t=e.target.closest('[data-m],[data-c],[data-g],[data-l],[data-cv],[data-s],[data-ds],[data-v],[data-ci],[data-mais],[data-tipo],[data-duf],[data-dfil]'); if(!t){ $('ddCli').hidden=true; return; }
   if(t.dataset.m!==undefined){ toggle(S.mont,t.dataset.m); S.cx=new Set([...S.cx].filter(n=>caixasVisiveis().some(c=>c.n===n))); desenharChips(); }
   else if(t.dataset.c!==undefined){ toggle(S.cx,t.dataset.c); desenharChips(); }
   else if(t.dataset.g!==undefined){ toggle(S.grp,t.dataset.g); desenharChips(); }
+  else if(t.dataset.l!==undefined){ toggle(S.lin,t.dataset.l); desenharChips(); }
   else if(t.dataset.cv!==undefined){ S.curva=S.curva===t.dataset.cv?null:t.dataset.cv; }
   else if(t.dataset.v!==undefined){ S.view=t.dataset.v; }
   else if(t.dataset.ci!==undefined){ escolherCliente(+t.dataset.ci); S.view='cli'; }
@@ -619,6 +625,7 @@ document.addEventListener('click',e=>{
 $('limpM').onclick=()=>{S.mont.clear();desenharChips();desenhar();};
 $('limpC').onclick=()=>{S.cx.clear();desenharChips();desenhar();};
 $('limpG').onclick=()=>{S.grp.clear();desenharChips();desenhar();};
+$('limpL').onclick=()=>{S.lin.clear();desenharChips();desenhar();};
 $('selTodas').onclick=()=>{caixasVisiveis().forEach(c=>S.cx.add(c.n));desenharChips();desenhar();};
 $('selPer').onchange=e=>{S.per=e.target.value;indexar();desenharChips();desenhar();};
 $('selRep').onchange=e=>{S.rep=+e.target.value; if(S.cli!==null&&S.rep>=0&&C[S.cli][4]!==S.rep) S.cli=null; $('inpCli').value=''; indexar(); desenharChips(); desenhar();};
@@ -793,7 +800,7 @@ $('fileImp').onchange=async e=>{
 };
 // ---- lembra a tela e os filtros: ao atualizar (F5) volta para o mesmo lugar
 function salvarEstado(){ try{ localStorage.setItem('euro_estado',JSON.stringify({visao:S.visao,view:S.view,cli:S.cli!==null&&C[S.cli]?C[S.cli][0]:null,rep:S.rep>=0?R[S.rep]:null,per:S.per,
-  mont:[...S.mont],cx:[...S.cx],grp:[...S.grp],curva:S.curva,st:S.st,busca:S.busca,sortP:S.sortP,sortX:S.sortX,buscaCx:$('buscaCx').value,
+  mont:[...S.mont],cx:[...S.cx],grp:[...S.grp],lin:[...S.lin],curva:S.curva,st:S.st,busca:S.busca,sortP:S.sortP,sortX:S.sortX,buscaCx:$('buscaCx').value,
   dist:D[S.dist]?D[S.dist].n:null,dLeit:S.dLeit,dTipo:S.dTipo,dUf:[...S.dUf],dFil:S.dFil,dSt:S.dSt,dBusca:S.dBusca,dSort:S.dSort,dSortUser:!!S._dSortUser,plFab:S.plFab,plPer:S.plPer,plBusca:S.plBusca})); }catch(e){} }
 function restaurarEstado(){
   let e=null; try{ e=JSON.parse(localStorage.getItem('euro_estado')||'null'); }catch(_){} if(!e) return;
@@ -804,7 +811,7 @@ function restaurarEstado(){
     S.rep=e.rep?R.indexOf(e.rep):-1;
     if(e.per&&V.some(v=>v[2]===e.per)) S.per=e.per;
     const monts=new Set(CX.map(c=>c.m)), cxs=new Set(CX.map(c=>c.n));
-    S.mont=new Set((e.mont||[]).filter(m=>monts.has(m))); S.cx=new Set((e.cx||[]).filter(n=>cxs.has(n))); S.grp=new Set(e.grp||[]);
+    S.mont=new Set((e.mont||[]).filter(m=>monts.has(m))); S.cx=new Set((e.cx||[]).filter(n=>cxs.has(n))); S.grp=new Set(e.grp||[]); S.lin=new Set(e.lin||[]);
     S.curva=e.curva||null; S.st=e.st||''; S.busca=e.busca||''; if(e.sortP) S.sortP=e.sortP; if(e.sortX) S.sortX=e.sortX;
     const di=e.dist?D.findIndex(d=>d.n===e.dist):-1; if(di>=0) S.dist=di;
     if(['est','cad'].includes(e.dLeit)) S.dLeit=e.dLeit;
