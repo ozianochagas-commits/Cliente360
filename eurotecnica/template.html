@@ -287,6 +287,7 @@ function iniciar(){
   $('selRep').innerHTML='<option value="-1">Todos os representantes</option>'+R.map((r,i)=>[r,i]).sort((a,b)=>a[0].localeCompare(b[0])).map(([r,i])=>`<option value="${i}">${esc(r)}</option>`).join('');
   const nv=new Set(V.map(v=>v[0])).size;
   $('infoBase').textContent=`${fmtN(P.length)} códigos · ${CX.length} caixas · ${fmtN(C.length)} clientes · ${fmtN(nv)} compraram caixa`;
+  if(!S._restaurado){ S._restaurado=1; restaurarEstado(); }
   popularDist(); indexar(); desenharChips(); desenhar();
 }
 
@@ -402,7 +403,7 @@ function desenharDist(){
   const tem=est?(i=>eq.get(i)>0):cad;
   // opções de status conforme a leitura
   const opts=est?[['','Todos os status'],['n','Sem estoque (oportunidade)'],['s','Com estoque'],['nc','Não cadastrado'],['sc','Cadastrado sem estoque']]:[['','Todos os status'],['n','Só o que o distribuidor NÃO tem'],['s','Só o que o distribuidor tem'],['sv','Tem cadastrado mas sem venda no período']];
-  if($('dSelSt').dataset.m!==(est?'e':'c')){ $('dSelSt').innerHTML=opts.map(([v,t])=>`<option value="${v}">${t}</option>`).join(''); $('dSelSt').dataset.m=est?'e':'c'; S.dSt=''; }
+  if($('dSelSt').dataset.m!==(est?'e':'c')){ $('dSelSt').innerHTML=opts.map(([v,t])=>`<option value="${v}">${t}</option>`).join(''); $('dSelSt').dataset.m=est?'e':'c'; S.dSt=S._dStKeep||''; S._dStKeep=null; }
   $('dSelSt').value=S.dSt;
   // UF das lojas (só leitura de estoque)
   const ufs=est?[...new Set((d.lojas||[]).map(l=>ufLojaD(d,l)))].sort():[];
@@ -746,6 +747,31 @@ $('fileImp').onchange=async e=>{
   }catch(err){ alert('Não consegui importar: '+err.message); }
   e.target.value='';
 };
+// ---- lembra a tela e os filtros: ao atualizar (F5) volta para o mesmo lugar
+function salvarEstado(){ try{ localStorage.setItem('euro_estado',JSON.stringify({visao:S.visao,view:S.view,cli:S.cli!==null&&C[S.cli]?C[S.cli][0]:null,rep:S.rep>=0?R[S.rep]:null,per:S.per,
+  mont:[...S.mont],cx:[...S.cx],grp:[...S.grp],curva:S.curva,st:S.st,busca:S.busca,sortP:S.sortP,sortX:S.sortX,buscaCx:$('buscaCx').value,
+  dist:D[S.dist]?D[S.dist].n:null,dLeit:S.dLeit,dTipo:S.dTipo,dUf:[...S.dUf],dFil:S.dFil,dSt:S.dSt,dBusca:S.dBusca,dSort:S.dSort,dSortUser:!!S._dSortUser,plFab:S.plFab,plPer:S.plPer,plBusca:S.plBusca})); }catch(e){} }
+function restaurarEstado(){
+  let e=null; try{ e=JSON.parse(localStorage.getItem('euro_estado')||'null'); }catch(_){} if(!e) return;
+  try{
+    if(['cli','dist','plano'].includes(e.visao)) S.visao=e.visao;
+    if(['cli','cx'].includes(e.view)) S.view=e.view;
+    const ci=e.cli?C.findIndex(c=>c[0]===e.cli):-1; S.cli=ci>=0?ci:null;
+    S.rep=e.rep?R.indexOf(e.rep):-1;
+    if(e.per&&V.some(v=>v[2]===e.per)) S.per=e.per;
+    const monts=new Set(CX.map(c=>c.m)), cxs=new Set(CX.map(c=>c.n));
+    S.mont=new Set((e.mont||[]).filter(m=>monts.has(m))); S.cx=new Set((e.cx||[]).filter(n=>cxs.has(n))); S.grp=new Set(e.grp||[]);
+    S.curva=e.curva||null; S.st=e.st||''; S.busca=e.busca||''; if(e.sortP) S.sortP=e.sortP; if(e.sortX) S.sortX=e.sortX;
+    const di=e.dist?D.findIndex(d=>d.n===e.dist):-1; if(di>=0) S.dist=di;
+    if(['est','cad'].includes(e.dLeit)) S.dLeit=e.dLeit;
+    S.dTipo=e.dTipo||null; S.dUf=new Set(e.dUf||[]); S.dFil=e.dFil||null; S.dSt=e.dSt||''; S._dStKeep=S.dSt; S.dBusca=e.dBusca||''; if(e.dSort) S.dSort=e.dSort; if(e.dSortUser) S._dSortUser=1;
+    S.plFab=FB.includes(e.plFab)?e.plFab:''; S.plPer=PER[e.plPer]?e.plPer:''; S.plBusca=e.plBusca||'';
+    // campos da tela
+    $('selVisao').value=S.visao; $('selPer').value=S.per; $('selRep').value=String(S.rep); $('selLeit').value=S.dLeit;
+    $('inpCli').value=S.cli!==null?C[S.cli][1]:''; $('busca').value=S.busca; $('selSt').value=S.st; $('dBusca').value=S.dBusca; $('buscaCx').value=e.buscaCx||''; $('plBusca').value=S.plBusca;
+  }catch(err){ try{ localStorage.removeItem('euro_estado'); }catch(_){} }
+}
+['click','change','input'].forEach(ev=>document.addEventListener(ev,()=>setTimeout(salvarEstado,0)));
 iniciar();
 </script>
 </body>
