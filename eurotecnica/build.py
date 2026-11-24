@@ -57,7 +57,7 @@ for ws in wb:
         ids.append(pidx[cod])
     caixas.append({'n': ws.title, 'm': mont.get(ws.title, 'OUTRAS'), 'p': sorted(set(ids))})
 
-# ---- itens SEM caixa (lista de preços com família): cada Grupo vira uma "caixa" sintética "<Grupo> (sem caixa)" na montadora SEM CAIXA
+# ---- itens SEM caixa (lista de preços com família): cada Grupo vira uma família (botão "<Grupo>") na montadora FAMÍLIAS
 def _grupo_canon(vals):
     c = collections.Counter(vals); best = {}
     for g, n in c.most_common():
@@ -77,14 +77,15 @@ if precos_xlsx:
         cod = s(r[0]); grupo = canon.get(s(r[22]).casefold(), s(r[22])) or 'Outros'; linha = _linha(r[21])
         if cod in pidx:                        # peça de caixa: a lista de preços (mais nova) manda na Linha e no Grupo
             q = parts[pidx[cod]]; q[3] = grupo; q[4] = linha; n_atual += 1
+            if s(r[23]): q[5] = ' '.join(s(r[23]).split())   # Aplicação da lista de preços (mais completa que a da aba da caixa)
             continue
         L = lista.get(cod); pcod = pc.get(cod)
         preco = r[8] if isinstance(r[8], (int, float)) else None
         pidx[cod] = len(parts)
-        parts.append([cod, s(r[3]), (s(L[1]) if L else ''), grupo, linha, s(r[23]), pcod[0] if pcod else '', s(r[4]).replace('.0', ''),
+        parts.append([cod, s(r[3]), (s(L[1]) if L else ''), grupo, linha, ' '.join(s(r[23]).split()), pcod[0] if pcod else '', s(r[4]).replace('.0', ''),
                       preco, 1 if s(r[8]).upper().startswith('VENDA SUSP') else 0, qtd_aplicada(r[20], None)])
         novos[grupo].append(pidx[cod])
-    for g in sorted(novos): caixas.append({'n': g + ' (sem caixa)', 'm': 'SEM CAIXA', 'p': sorted(novos[g])})
+    for g in sorted(novos): caixas.append({'n': g, 'm': 'FAMÍLIAS', 'p': sorted(novos[g])})   # itens sem caixa ficam só na família (Grupo)
     print('itens sem caixa acrescentados:', sum(len(v) for v in novos.values()), 'em', len(novos), 'famílias | peças de caixa atualizadas (Linha/Grupo):', n_atual)
 
 # vendas
