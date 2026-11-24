@@ -119,6 +119,9 @@ table.lojas .q,table.lojas th.q{text-align:right}
 .tchip.on{outline:2px solid var(--verde)}.tchip.cd{border-left-color:var(--verde)}
 .tchip .pc{font-weight:800;font-size:15px}
 .st.a{background:var(--b)}
+.kpi[data-kf],.kpi[data-kc]{cursor:pointer;transition:box-shadow .12s,transform .12s}
+.kpi[data-kf]:hover,.kpi[data-kc]:hover{box-shadow:0 3px 10px rgba(0,0,0,.14);transform:translateY(-1px)}
+.kpi.ativo{outline:3px solid var(--verde);outline-offset:-1px}
 .kpi small{display:block;color:var(--cinza);font-size:11px;margin-top:2px}
 #dKpis{grid-template-columns:repeat(auto-fit,minmax(185px,1fr))}
 .bar.b2{height:3px;margin-top:3px;background:#eef1f3}
@@ -191,9 +194,9 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
 
   <div id="vCli">
     <div class="kpis">
-      <div class="kpi sel"><b id="kSel">0</b><span>Códigos na seleção</span></div>
-      <div class="kpi ja"><b id="kJa">0</b><span>Já compra</span></div>
-      <div class="kpi op"><b id="kOp">0</b><span>Oportunidade (não compra)</span></div>
+      <div class="kpi sel" data-kc="all" title="Clique para ver os itens"><b id="kSel">0</b><span>Códigos na seleção</span></div>
+      <div class="kpi ja" data-kc="ja" title="Clique para ver os itens"><b id="kJa">0</b><span>Já compra</span></div>
+      <div class="kpi op" data-kc="op" title="Clique para ver os itens"><b id="kOp">0</b><span>Oportunidade (não compra)</span></div>
       <div class="kpi cob"><b id="kCob">0%</b><span>Cobertura geral</span></div>
     </div>
     <div class="curvas" id="curvas"></div>
@@ -210,11 +213,11 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
     <div id="dFilSec" hidden><div class="sec">Filial <small style="text-transform:none;font-weight:400">— marque uma ou mais lojas para ver só o estoque e as vendas delas · <span style="background:#e3f5ea;border:1px solid #7cc59b;border-radius:4px;padding:0 6px;color:#14532d">verde claro = tem estoque</span></small></div><div class="ms" id="msFil"></div></div>
     <div id="dUfSec" hidden><div class="sec">Local (UF das lojas) — opcional <a id="dUfLimpar">LIMPAR</a></div><div class="chips" id="dUf"></div></div>
     <div class="kpis" id="dKpis">
-      <div class="kpi sel"><b id="dKSel">0</b><span>Códigos da fábrica na seleção</span></div>
-      <div class="kpi ja"><b id="dKCad">0</b><span>Cadastrados no distribuidor</span><small id="dKCadP"></small></div>
-      <div class="kpi op"><b id="dKFalta">0</b><span>Faltam cadastrar (fábrica tem, distribuidor não)</span><small id="dKFaltaP"></small></div>
-      <div class="kpi" id="dKEstBox"><b id="dKEst" style="color:var(--verde-esc)">0</b><span>Com estoque</span><small id="dKEstP"></small></div>
-      <div class="kpi" id="dKSemBox"><b id="dKSem" style="color:var(--b)">0</b><span>Cadastrados sem estoque</span><small id="dKSemP"></small></div>
+      <div class="kpi sel" data-kf="all" title="Clique para ver os itens"><b id="dKSel">0</b><span>Códigos da fábrica na seleção</span></div>
+      <div class="kpi ja" data-kf="cad" title="Clique para ver os itens"><b id="dKCad">0</b><span>Cadastrados no distribuidor</span><small id="dKCadP"></small></div>
+      <div class="kpi op" data-kf="falta" title="Clique para ver os itens"><b id="dKFalta">0</b><span>Faltam cadastrar (fábrica tem, distribuidor não)</span><small id="dKFaltaP"></small></div>
+      <div class="kpi" id="dKEstBox" data-kf="est" title="Clique para ver os itens"><b id="dKEst" style="color:var(--verde-esc)">0</b><span>Com estoque</span><small id="dKEstP"></small></div>
+      <div class="kpi" id="dKSemBox" data-kf="sem" title="Clique para ver os itens"><b id="dKSem" style="color:var(--b)">0</b><span>Cadastrados sem estoque</span><small id="dKSemP"></small></div>
     </div>
     <div class="curvas" id="dCurvas"></div>
     <div class="tchips" id="dTipo" hidden></div>
@@ -436,12 +439,16 @@ function desenhar(){
   if(S.view==='cli') desenharCliente(); else desenharCaixaCliente();
 }
 
+function irParaTabela(sel){   // desce até a barra da tabela (busca/status) depois de redesenhar
+  setTimeout(()=>{ const box=document.querySelector(sel).closest('.tbl'); const alvo=(box&&box.previousElementSibling)||box; if(alvo) alvo.scrollIntoView({behavior:'smooth',block:'start'}); },60);
+}
 function desenharCliente(){
   const m=S.cli!==null?(S._idx.get(S.cli)||new Map()):new Map();
   const base=selecaoPartes();
   const ja=base.filter(i=>comprou(m.get(i)));
   $('kSel').textContent=fmtN(base.length); $('kJa').textContent=S.cli!==null?fmtN(ja.length):'—';
   $('kOp').textContent=S.cli!==null?fmtN(base.length-ja.length):'—';
+  document.querySelectorAll('#vCli .kpis .kpi[data-kc]').forEach(k=>k.classList.toggle('ativo',({s:'ja',n:'op'})[S.st]===k.dataset.kc));
   $('kCob').textContent=S.cli!==null&&base.length?(100*ja.length/base.length).toFixed(1)+'%':'—';
   const grupos=[['AA / A',['AA','A'],'--aa'],['B',['B'],'--b'],['C',['C'],'--c'],['Lançamentos',['Lançamento'],'--l']];
   if(base.some(i=>!P[i][2])) grupos.push(['Sem curva',[''],'--c']);
@@ -535,7 +542,7 @@ function desenharDist(){
   const nab=new Map(); if(est) base.forEach(i=>{ const n=lojasAbaixoQA(d,i); if(n) nab.set(i,n); });
   const tem=est?(i=>eq.get(i)>0):cad;
   // opções de status conforme a leitura
-  const opts=est?[['','Todos os status'],['n','Sem estoque (inclui não cadastrados)'],['s','Com estoque'],['nc','Não cadastrado'],['sc','Tem cadastro, sem estoque'],['ab','⚠ Loja com estoque abaixo da qtd. aplicada']]:[['','Todos os status'],['n','Só o que o distribuidor NÃO tem'],['s','Só o que o distribuidor tem'],['sv','Tem cadastrado mas sem venda no período']];
+  const opts=est?[['','Todos os status'],['cad','Cadastrados (com ou sem estoque)'],['n','Sem estoque (inclui não cadastrados)'],['s','Com estoque'],['nc','Não cadastrado'],['sc','Tem cadastro, sem estoque'],['ab','⚠ Loja com estoque abaixo da qtd. aplicada']]:[['','Todos os status'],['n','Só o que o distribuidor NÃO tem'],['s','Só o que o distribuidor tem'],['sv','Tem cadastrado mas sem venda no período']];
   if($('dSelSt').dataset.m!==(est?'e':'c')){ $('dSelSt').innerHTML=opts.map(([v,t])=>`<option value="${v}">${t}</option>`).join(''); $('dSelSt').dataset.m=est?'e':'c'; S.dSt=S._dStKeep||''; S._dStKeep=null; }
   $('dSelSt').value=S.dSt;
   // UF das lojas (só leitura de estoque)
@@ -552,6 +559,7 @@ function desenharDist(){
   $('dKEstBox').hidden=!est; $('dKSemBox').hidden=!est;
   $('dKEst').textContent=fmtN(nEst); $('dKEstP').textContent=pc1(nEst,base.length)+' da seleção';
   $('dKSem').textContent=fmtN(nSem); $('dKSemP').textContent='tem cadastro, mas sem saldo';
+  { const ak=(est?{cad:'cad',nc:'falta',s:'est',sc:'sem'}:{s:'cad',n:'falta'})[S.dSt]; document.querySelectorAll('#dKpis .kpi').forEach(k=>k.classList.toggle('ativo',!!ak&&k.dataset.kf===ak)); }
   const grupos=[['AA / A',['AA','A'],'--aa'],['B',['B'],'--b'],['C',['C'],'--c'],['Lançamentos',['Lançamento'],'--l']];
   if(base.some(i=>!P[i][2])) grupos.push(['Sem curva',[''],'--c']);
   $('dCurvas').innerHTML=grupos.map(([nome,cs,cor])=>{
@@ -573,7 +581,7 @@ function desenharDist(){
   } else { $('dTipo').hidden=true; $('dTipo').innerHTML=''; if(S.dTipo) S.dTipo=null; }
   let lista=base.slice(); if(cvSel) lista=lista.filter(i=>cvSel[1].includes(P[i][2]));
   if(est&&S.dTipo) lista=lista.filter(i=>estPart(d,i,S.dTipo).q>0);
-  if(est){ if(S.dSt==='n') lista=lista.filter(i=>!tem(i)); else if(S.dSt==='s') lista=lista.filter(tem); else if(S.dSt==='nc') lista=lista.filter(i=>!cad(i)&&!tem(i)); else if(S.dSt==='sc') lista=lista.filter(i=>cad(i)&&!tem(i)); else if(S.dSt==='ab') lista=lista.filter(i=>nab.get(i)); }
+  if(est){ if(S.dSt==='cad') lista=lista.filter(i=>cad(i)||tem(i)); else if(S.dSt==='n') lista=lista.filter(i=>!tem(i)); else if(S.dSt==='s') lista=lista.filter(tem); else if(S.dSt==='nc') lista=lista.filter(i=>!cad(i)&&!tem(i)); else if(S.dSt==='sc') lista=lista.filter(i=>cad(i)&&!tem(i)); else if(S.dSt==='ab') lista=lista.filter(i=>nab.get(i)); }
   else { if(S.dSt==='n') lista=lista.filter(i=>!cad(i)); else if(S.dSt==='s') lista=lista.filter(cad); else if(S.dSt==='sv') lista=lista.filter(i=>cad(i)&&!sold(i)); }
   const q=S.dBusca.trim().toLowerCase(); if(q) lista=lista.filter(i=>(P[i][0]+' '+P[i][1]+' '+P[i][5]+' '+P[i][7]+' '+(cad(i)?d.c[i][0]:'')).toLowerCase().includes(q));
   if(!S.dMarc.size) S.dSoSel=false;
@@ -772,8 +780,11 @@ document.addEventListener('click',e=>{
     if(abre){ if(!(prox&&prox.classList.contains('sub'))) tr.insertAdjacentHTML('afterend',`<tr class="sub"><td colspan="${tr.cells.length}">${detalheLojas(D[S.dist],i)}</td></tr>`); }
     else if(prox&&prox.classList.contains('sub')) prox.remove();
     return; }
-  const t=e.target.closest('[data-m],[data-c],[data-g],[data-l],[data-cv],[data-s],[data-ds],[data-v],[data-ci],[data-mais],[data-tipo],[data-duf]'); if(!t){ $('ddCli').hidden=true; return; }
+  const t=e.target.closest('[data-m],[data-c],[data-g],[data-l],[data-cv],[data-s],[data-ds],[data-v],[data-ci],[data-mais],[data-tipo],[data-duf],[data-kf],[data-kc]'); if(!t){ $('ddCli').hidden=true; return; }
   if(t.dataset.m!==undefined){ toggle(S.mont,t.dataset.m); S.cx=new Set([...S.cx].filter(n=>caixasVisiveis().some(c=>c.n===n))); desenharChips(); }
+  else if(t.dataset.kf!==undefined){ const d=D[S.dist], est=d&&d.e&&S.dLeit==='est';
+    const v=(est?{all:'',cad:'cad',falta:'nc',est:'s',sem:'sc'}:{all:'',cad:'s',falta:'n'})[t.dataset.kf]; S.dSt=(S.dSt===v)?'':v; S.dSoSel=false; irParaTabela('#dTb'); }
+  else if(t.dataset.kc!==undefined){ const v={all:'',ja:'s',op:'n'}[t.dataset.kc]; S.st=(S.st===v)?'':v; $('selSt').value=S.st; irParaTabela('#tbP'); }
   else if(t.dataset.c!==undefined){ toggle(S.cx,t.dataset.c); desenharChips(); }
   else if(t.dataset.g!==undefined){ toggle(S.grp,t.dataset.g); desenharChips(); }
   else if(t.dataset.l!==undefined){ toggle(S.lin,t.dataset.l); desenharChips(); }
