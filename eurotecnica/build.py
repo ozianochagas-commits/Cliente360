@@ -110,6 +110,8 @@ def resolver_peca(cod):
     if cand and len(cand) == 1: return pidx[next(iter(cand))], 'prefixo'
     return None, None
 casou = collections.Counter()
+matc = collections.defaultdict(collections.Counter)   # peça -> Material (código do distribuidor) nas vendas
+estcod = {}                                              # peça -> Produto (código do distribuidor) no estoque
 tot = collections.defaultdict(float)
 lastrep = {}
 centro_uf = collections.defaultdict(collections.Counter)
@@ -129,6 +131,7 @@ for r in rows[1:]:
     pi, como = resolver_peca(cod)
     if pi is None: continue
     casou[como] += 1
+    if s(r[5]): matc[pi][s(r[5])] += 1
     vl[(pi, s(r[1]), d.year)][d.month - 1] += r[3] or 0
     k = (ci, pi, d.strftime('%Y-%m'))
     a = agg[k]; a[0] += r[3] or 0; a[1] += r[14] or 0; a[2] = max(a[2], (d - datetime.datetime(1899, 12, 30)).days); a[3] += max(r[3] or 0, 0)
@@ -166,6 +169,7 @@ if estoque_xlsx:  # estoque livre por loja (planilha "ESTOQUE_EUROTECNICA": Prod
         if not loja: continue
         lojas.add(loja)
         pi = pidx.get(s(r[1]))
+        if pi is not None and s(r[0]): estcod.setdefault(pi, s(r[0]))
         if pi is not None and (r[4] or 0) > 0:
             E.setdefault(str(pi), {})[loja] = r[4]
     lj = json.load(open(os.path.join(here, 'lojas_padre_cicero.json'), encoding='utf-8'))   # nome e cidade das lojas (mesma lista do Cliente 360 da Rio)
@@ -177,6 +181,13 @@ if estoque_xlsx:  # estoque livre por loja (planilha "ESTOQUE_EUROTECNICA": Prod
     D[0].update({'lj': lj, 'vl': VL, 'nm': nm, 'e': E, 'lojas': sorted(lojas),
                  'cd': ['F004', 'F017', 'F019', 'F026', 'F031', 'F035', 'F038', 'F041', 'F043'],   # lojas Atacado/CD (mesma regra do Cliente 360 da Rio)
                  'uf': {k: v.most_common(1)[0][0] for k, v in centro_uf.items()}})
+# Item que o distribuidor vendeu ou tem em estoque sempre tem código dele: se faltar no cadastro, vale o do estoque (Produto) ou o das vendas (Material)
+extra = 0
+for pi in sorted(set(matc) | set(estcod)):
+    if pi in D[0]['c']: continue
+    cod = estcod.get(pi) or matc[pi].most_common(1)[0][0]
+    if cod: D[0]['c'][pi] = [cod, 'código obtido do estoque/vendas do distribuidor', 'ATIVO']; extra += 1
+print('códigos do distribuidor completados pelo estoque/vendas:', extra)
 T = [[k[0], k[1], round(v, 2)] for k, v in tot.items()]
 data = {'P': parts, 'CX': caixas, 'C': cli, 'R': reps, 'V': V, 'D': D, 'T': T}
 tpl = open(os.path.join(here, 'template.html'), encoding='utf-8').read()
