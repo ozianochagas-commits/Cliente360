@@ -194,6 +194,8 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
       <span class="tit">Produtos <span id="dNProd" style="color:var(--cinza);font-weight:400"></span></span>
       <input type="text" id="dBusca" placeholder="Buscar código ou descrição…" style="width:240px">
       <select id="dSelSt"></select>
+      <button class="btn" id="dBtnSoSel" hidden></button>
+      <button class="btn" id="dBtnRepo" hidden title="Itens que a loja vendeu e está sem estoque: sugere a quantidade pela média mensal ou pelo total vendido">📦 Reposição</button>
       <button class="btn" id="dBtnExp" title="Exporta a lista (ou só os produtos marcados)">⬇ Exportar</button>
     </div>
     <div class="tbl"><table><thead id="dTh"></thead><tbody id="dTb"></tbody></table></div>
@@ -261,7 +263,7 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const ordCurva = {AA:0,A:1,B:2,C:3,'Lançamento':4};
 const cls = c => c==='Lançamento'?'cL':'c'+c;
 
-const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli', visao:'cli', plFab:'', plPer:'', plBusca:'', dist:0, dSt:'', dBusca:'', dSort:['curva',1], dLeit:'est', dTipo:null, dUf:new Set(), dOpen:new Set(), dMarc:new Set() };
+const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli', visao:'cli', plFab:'', plPer:'', plBusca:'', dist:0, dSt:'', dBusca:'', dSort:['curva',1], dLeit:'est', dTipo:null, dUf:new Set(), dOpen:new Set(), dMarc:new Set(), dSoSel:false };
 
 function indexar(){
   // vendas por cliente: Map cli -> Map part -> {q,v,last}   (respeita o período)
@@ -426,6 +428,8 @@ function desenharDist(){
   if(est){ if(S.dSt==='n') lista=lista.filter(i=>!tem(i)); else if(S.dSt==='s') lista=lista.filter(tem); else if(S.dSt==='nc') lista=lista.filter(i=>!cad(i)&&!tem(i)); else if(S.dSt==='sc') lista=lista.filter(i=>cad(i)&&!tem(i)); }
   else { if(S.dSt==='n') lista=lista.filter(i=>!cad(i)); else if(S.dSt==='s') lista=lista.filter(cad); else if(S.dSt==='sv') lista=lista.filter(i=>cad(i)&&!sold(i)); }
   const q=S.dBusca.trim().toLowerCase(); if(q) lista=lista.filter(i=>(P[i][0]+' '+P[i][1]+' '+P[i][7]+' '+(cad(i)?d.c[i][0]:'')).toLowerCase().includes(q));
+  if(!S.dMarc.size) S.dSoSel=false;
+  if(S.dSoSel) lista=lista.filter(i=>S.dMarc.has(i));
   const cxDe=i=>CX.filter(c=>c.p.includes(i)&&(!S.cx.size||S.cx.has(c.n))).map(c=>c.n).join(', ');
   const codD=i=>cad(i)?d.c[i][0]:'';
   if(est&&S.dSort[0]==='curva'&&!S._dSortUser) S.dSort=['est',-1];
@@ -440,6 +444,11 @@ function desenharDist(){
   $('dTh').innerHTML='<tr>'+cols.map(([c,t,n])=>c==='chk'?`<th style="width:34px"><input type="checkbox" id="dChkAll" title="Marcar / desmarcar todos" ${todosMarc?'checked':''}></th>`
     :`<th class="${n||''}" ${c?`data-ds="${c}"`:''}>${t}${c?(S.dSort[0]===c?(S.dSort[1]>0?' ▲':' ▼'):' ↕'):''}</th>`).join('')+'</tr>';
   $('dNProd').textContent='('+fmtN(lista.length)+')';
+  const nM=S.dMarc.size;
+  $('dBtnExp').textContent=nM?`⬇ Exportar (${nM})`:'⬇ Exportar';
+  $('dBtnSoSel').hidden=!nM; $('dBtnSoSel').textContent=S.dSoSel?`☑ Só selecionados (${nM}) · ver todos`:`☑ Só selecionados (${nM})`;
+  $('dBtnSoSel').style.background=S.dSoSel?'var(--verde-claro)':'';
+  $('dBtnRepo').hidden=!(est&&d.vl); $('dBtnRepo').textContent=nM?`📦 Reposição (${nM})`:'📦 Reposição';
   const badge=p=>`<span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':p[2]}</span>`;
   $('dTb').innerHTML=lista.length?lista.slice(0,1500).map(i=>{const p=P[i], y=vp(i);
     if(est){ const e=eq.get(i)||0, c=cad(i); const aberto=S.dOpen.has(i);
@@ -623,6 +632,41 @@ $('fileEst').onchange=async e=>{
 };
 $('dBusca').oninput=e=>{S.dBusca=e.target.value;desenhar();};
 $('dSelSt').onchange=e=>{S.dSt=e.target.value;desenhar();};
+$('dBtnSoSel').onclick=()=>{ S.dSoSel=!S.dSoSel; desenharDist(); };
+$('dBtnRepo').onclick=()=>{
+  const d=D[S.dist];
+  if(!d||!d.e||!d.vl||!d.nm){ alert('Este distribuidor não tem planilha de vendas por loja: não dá para gerar a sugestão de reposição.'); return; }
+  let lista=S._rowsD.slice(); if(S.dMarc.size) lista=lista.filter(i=>S.dMarc.has(i));   // só os marcados, se houver
+  if(!lista.length){ alert('Nenhum produto na lista atual.'); return; }
+  const filiais=(d.lojas||[]).filter(l=>lojaOkD(d,l)&&(!S.dTipo||tipoLojaD(d,l)===S.dTipo));
+  const meses=d.nm, nomeLoja=c=>((d.lj&&d.lj[c])||{}).n||'';
+  const cidadeUf=c=>{ const i=d.lj&&d.lj[c]; return [i&&nomeCidade(i.c),ufLojaD(d,c)!=='—'?ufLojaD(d,c):''].filter(Boolean).join(' / '); };
+  const ordemCurva={AA:0,A:1,B:2,C:3,'Lançamento':4}; const linhas=[];
+  lista.forEach(i=>{ filiais.forEach(f=>{
+    const vm=d.vl[i]&&d.vl[i][f]; if(!vm) return;
+    const vend=vm.slice(0,meses).reduce((a,x)=>a+x,0); if(vend<=0) return;                 // sem venda: não entra
+    const est=(d.e[i]&&d.e[i][f])||0, temEst=est>0;                                         // vendeu mas ainda tem estoque: entra marcada "não repor", para o vendido fechar
+    const mcv=vm.slice(0,meses).filter(x=>x>0).length; let ult=-1; vm.slice(0,meses).forEach((x,k)=>{ if(x>0) ult=k; });
+    linhas.push({f,i,vend,media:vend/mcv,mcv,ult,temEst,est}); }); });
+  if(!linhas.some(x=>!x.temEst)){ alert('Nenhuma loja com item vendido e sem estoque nesta seleção. 🎉'); return; }
+  linhas.sort((a,b)=>a.f.localeCompare(b.f)||((ordemCurva[P[a.i][2]]??9)-(ordemCurva[P[b.i][2]]??9))||(b.vend-a.vend));
+  const cxs=i=>CX.filter(c=>c.p.includes(i)&&(!S.cx.size||S.cx.has(c.n))).map(c=>c.n).join(', ');
+  const dados=linhas.map(x=>({"Filial":x.f,"Loja":nomeLoja(x.f),"Cidade / UF":cidadeUf(x.f),["Cód. "+d.n]:d.c[x.i]?d.c[x.i][0]:'',"Código":P[x.i][0],"Produto":P[x.i][1],"Caixa(s)":cxs(x.i),"Grupo":P[x.i][3],"Curva":P[x.i][2],
+    ["Vendido (Jan a "+MESES_AB[meses-1]+")"]:Math.round(x.vend*100)/100,"Meses com venda":x.mcv,"Último mês com venda":MESES_AB[x.ult],"Média mensal (nos meses com venda)":Math.round(x.media*10)/10,
+    "Estoque atual":x.est,"Sugestão (média mensal)":x.temEst?0:Math.max(1,Math.ceil(x.media)),"Sugestão (igual ao vendido)":x.temEst?0:Math.ceil(x.vend),
+    "Situação":x.temEst?"Tem estoque — não repor":"Repor (sem estoque)"}));
+  const est={font:{bold:true,color:{rgb:"FFFFFF"}},fill:{patternType:"solid",fgColor:{rgb:"009A4E"}},alignment:{vertical:"center",wrapText:true}};
+  const ws=XLSX.utils.json_to_sheet(dados); const cab=XLSX.utils.decode_range(ws['!ref']);
+  for(let c=0;c<=cab.e.c;c++){ const ce=ws[XLSX.utils.encode_cell({r:0,c})]; if(ce) ce.s=est; }
+  ws['!cols']=[8,26,20,14,13,50,24,16,7,14,10,12,10,9,13,13,24].map(w=>({wch:w})); ws['!autofilter']={ref:ws['!ref']};
+  const porF={};
+  linhas.filter(x=>!x.temEst).forEach(x=>{ const r=porF[x.f]||(porF[x.f]={"Filial":x.f,"Loja":nomeLoja(x.f),"Itens a repor":0,"Sugestão (média mensal)":0,"Sugestão (igual ao vendido)":0}); r["Itens a repor"]++; r["Sugestão (média mensal)"]+=Math.max(1,Math.ceil(x.media)); r["Sugestão (igual ao vendido)"]+=Math.ceil(x.vend); });
+  const wsR=XLSX.utils.json_to_sheet(Object.values(porF)); const cabR=XLSX.utils.decode_range(wsR['!ref']);
+  for(let c=0;c<=cabR.e.c;c++){ const ce=wsR[XLSX.utils.encode_cell({r:0,c})]; if(ce) ce.s=est; }
+  wsR['!cols']=[8,28,14,22,26].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,wsR,'Resumo'); XLSX.utils.book_append_sheet(wb,ws,'Reposição');
+  XLSX.writeFile(wb,`Sugestao_Reposicao_${d.n.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
 $('dBtnExp').onclick=()=>{ const d=D[S.dist]; const vp=i=>S._vp.get(i)||{q:0,v:0,cl:new Set()}; const est=d.e&&S.dLeit==='est';
   const rows=S.dMarc.size?S._rowsD.filter(i=>S.dMarc.has(i)):S._rowsD;
   const cab=['Código fábrica','Produto','Grupo','Curva','Cadastro no distribuidor','Cód. no distribuidor']; if(est) cab.push('Estoque geral'); if(d.vendas) cab.push('Vendido geral','Clientes');
