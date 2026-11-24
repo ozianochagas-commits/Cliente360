@@ -8,6 +8,7 @@ import openpyxl
 caixas_xlsx, vendas_xlsx = sys.argv[1], sys.argv[2]
 estoque_xlsx = sys.argv[3] if len(sys.argv) > 3 else None
 cadastro_xlsx = sys.argv[4] if len(sys.argv) > 4 else None
+precos_xlsx = sys.argv[5] if len(sys.argv) > 5 else None   # lista de preços com Linha e Grupo (família): traz os itens que não estão em nenhuma caixa
 here = os.path.dirname(os.path.abspath(__file__))
 SKIP = {'Análise Caixas', 'Lista', 'Cadastro Padre Cícero'}
 
@@ -55,6 +56,36 @@ for ws in wb:
                           preco, 1 if (L and L[8] == 'Venda Suspensa') else 0, qtd_aplicada(r[6], L)])
         ids.append(pidx[cod])
     caixas.append({'n': ws.title, 'm': mont.get(ws.title, 'OUTRAS'), 'p': sorted(set(ids))})
+
+# ---- itens SEM caixa (lista de preços com família): cada Grupo vira uma "caixa" sintética "<Grupo> (sem caixa)" na montadora SEM CAIXA
+def _grupo_canon(vals):
+    c = collections.Counter(vals); best = {}
+    for g, n in c.most_common():
+        best.setdefault(g.casefold(), g)          # grafia mais comum de cada grupo (CÂMBIO -> Câmbio)
+    return best
+def _linha(v):
+    v = ' '.join(s(v).split()).upper()
+    return '/'.join(x.strip() for x in v.split('/')) if v else ''
+if precos_xlsx:
+    pw = openpyxl.load_workbook(precos_xlsx, read_only=True, data_only=True).active
+    prow = list(pw.iter_rows(values_only=True))
+    assert s(prow[1][0]).startswith('Nº Eurotecnica') and s(prow[1][21]) == 'Linha' and s(prow[1][22]) == 'Grupo', 'layout da lista de preços inesperado'
+    prow = [r for r in prow[2:] if r and r[0]]
+    canon = _grupo_canon([s(r[22]) for r in prow if s(r[22])])
+    novos = collections.defaultdict(list); n_atual = 0
+    for r in prow:
+        cod = s(r[0]); grupo = canon.get(s(r[22]).casefold(), s(r[22])) or 'Outros'; linha = _linha(r[21])
+        if cod in pidx:                        # peça de caixa: a lista de preços (mais nova) manda na Linha e no Grupo
+            q = parts[pidx[cod]]; q[3] = grupo; q[4] = linha; n_atual += 1
+            continue
+        L = lista.get(cod); pcod = pc.get(cod)
+        preco = r[8] if isinstance(r[8], (int, float)) else None
+        pidx[cod] = len(parts)
+        parts.append([cod, s(r[3]), (s(L[1]) if L else ''), grupo, linha, s(r[23]), pcod[0] if pcod else '', s(r[4]).replace('.0', ''),
+                      preco, 1 if s(r[8]).upper().startswith('VENDA SUSP') else 0, qtd_aplicada(r[20], None)])
+        novos[grupo].append(pidx[cod])
+    for g in sorted(novos): caixas.append({'n': g + ' (sem caixa)', 'm': 'SEM CAIXA', 'p': sorted(novos[g])})
+    print('itens sem caixa acrescentados:', sum(len(v) for v in novos.values()), 'em', len(novos), 'famílias | peças de caixa atualizadas (Linha/Grupo):', n_atual)
 
 # vendas
 ws = openpyxl.load_workbook(vendas_xlsx, read_only=True).active
