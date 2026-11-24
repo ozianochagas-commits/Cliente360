@@ -27,6 +27,15 @@ for r in wb['Análise Caixas'].iter_rows(min_row=13, values_only=True):
     if r[2] and r[1] is not None or r[2]:
         if s(r[2]) and cur and s(r[2]) not in ('Caixa',): mont[s(r[2])] = cur
 
+def qtd_aplicada(v, L):
+    for x in (v, L[20] if L else None):   # aba da caixa; se vazio, a coluna "Qtd. Aplicada" da Lista
+        try:
+            n = float(str(x).replace(',', '.'))
+            if n > 0: return int(n) if n == int(n) else n
+        except (TypeError, ValueError):
+            pass
+    return 1
+
 parts, pidx, caixas = [], {}, []
 for ws in wb:
     if ws.title in SKIP: continue
@@ -42,7 +51,7 @@ for ws in wb:
             parts.append([cod, s(r[4]) or (s(L[2]) if L else ''), s(r[3]) or (s(L[1]) if L else ''),
                           s(L[22]) if L else '', s(L[21]) if L else '', s(r[5]),
                           p[0] if p else (s(r[7]).replace('.0', '')), s(r[1]).replace('.0', ''),
-                          preco, 1 if (L and L[8] == 'Venda Suspensa') else 0])
+                          preco, 1 if (L and L[8] == 'Venda Suspensa') else 0, qtd_aplicada(r[6], L)])
         ids.append(pidx[cod])
     caixas.append({'n': ws.title, 'm': mont.get(ws.title, 'OUTRAS'), 'p': sorted(set(ids))})
 
