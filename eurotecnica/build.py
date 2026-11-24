@@ -64,7 +64,19 @@ def dt(v):
     if isinstance(v, (int, float)): return datetime.datetime(1899, 12, 30) + datetime.timedelta(days=v)
     return None
 cli, cidx, reps, ridx = [], {}, [], {}
-agg = collections.defaultdict(lambda: [0, 0.0, 0])
+agg = collections.defaultdict(lambda: [0, 0.0, 0, 0.0])   # qtd líquida, valor, última data, qtd bruta comprada (sem devoluções)
+# O "Nº peça fabricante" da venda nem sempre bate com o catálogo (ex.: venda 30001332-5, catálogo 30001332-4; ou dois códigos na mesma linha).
+# Mesma regra do Excel das caixas (que busca pelos 8 primeiros dígitos): exato -> um dos códigos de "a/b" -> 8 primeiros dígitos (só se forem de uma peça só).
+_pref = collections.defaultdict(set)
+for _c in pidx: _pref[_c[:8]].add(_c)
+def resolver_peca(cod):
+    if cod in pidx: return pidx[cod], 'exato'
+    for q in cod.replace(' ', '').split('/'):
+        if q in pidx: return pidx[q], 'composto'
+    cand = _pref.get(cod[:8])
+    if cand and len(cand) == 1: return pidx[next(iter(cand))], 'prefixo'
+    return None, None
+casou = collections.Counter()
 tot = collections.defaultdict(float)
 lastrep = {}
 centro_uf = collections.defaultdict(collections.Counter)
@@ -81,11 +93,14 @@ for r in rows[1:]:
     if ci not in lastrep or d >= lastrep[ci][0]: lastrep[ci] = (d, ridx[rep]); cli[ci][4] = ridx[rep]
     centro_uf[s(r[1])][s(r[27])] += 1
     tk = (ci, d.strftime('%Y-%m')); tot[tk] += r[14] or 0   # faturamento total (todas as peças) p/ Plano de Negócio
-    if cod not in pidx: continue
-    vl[(pidx[cod], s(r[1]), d.year)][d.month - 1] += r[3] or 0
-    k = (ci, pidx[cod], d.strftime('%Y-%m'))
-    a = agg[k]; a[0] += r[3] or 0; a[1] += r[14] or 0; a[2] = max(a[2], (d - datetime.datetime(1899, 12, 30)).days)
-V = [[k[0], k[1], k[2], round(a[0], 3), round(a[1], 2), a[2]] for k, a in agg.items()]
+    pi, como = resolver_peca(cod)
+    if pi is None: continue
+    casou[como] += 1
+    vl[(pi, s(r[1]), d.year)][d.month - 1] += r[3] or 0
+    k = (ci, pi, d.strftime('%Y-%m'))
+    a = agg[k]; a[0] += r[3] or 0; a[1] += r[14] or 0; a[2] = max(a[2], (d - datetime.datetime(1899, 12, 30)).days); a[3] += max(r[3] or 0, 0)
+V = [[k[0], k[1], k[2], round(a[0], 3), round(a[1], 2), a[2], round(a[3], 3)] for k, a in agg.items()]
+print('vendas casadas com o catálogo:', dict(casou))
 # distribuidores: cadastro (cód. da fábrica -> cód. do distribuidor). Só o Padre Cícero tem cadastro na planilha.
 dpc = {}
 for cod, (c, desc, sit) in pc.items():

@@ -271,11 +271,11 @@ const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(
 function indexar(){
   // vendas por cliente: Map cli -> Map part -> {q,v,last}   (respeita o período)
   S._idx = new Map(); S._vp = new Map();
-  for(const [ci,pi,ym,q,v,last] of V){
+  for(const [ci,pi,ym,q,v,last,g] of V){
     if(S.per && ym!==S.per) continue;
     let m = S._idx.get(ci); if(!m){ m=new Map(); S._idx.set(ci,m); }
-    let x = m.get(pi); if(!x){ x={q:0,v:0,last:0}; m.set(pi,x); }
-    x.q+=q; x.v+=v; if(last>x.last) x.last=last;
+    let x = m.get(pi); if(!x){ x={q:0,v:0,last:0,g:0}; m.set(pi,x); }
+    x.g+=(g||0); x.q+=q; x.v+=v; if(last>x.last) x.last=last;
     let y=S._vp.get(pi); if(!y){ y={q:0,v:0,cl:new Set()}; S._vp.set(pi,y); }
     y.q+=q; y.v+=v; if(q>0) y.cl.add(ci);
   }
@@ -359,7 +359,7 @@ function desenharCliente(){
   $('tbP').innerHTML=lista.length?lista.slice(0,1500).map(i=>{const x=m.get(i), ok=comprou(x), p=P[i];
     return `<tr><td class="cod">${esc(p[0])}</td><td>${esc(p[1])}${p[9]?' <small style="color:var(--nao)">(venda suspensa)</small>':''}</td><td class="n"><b>${P[i][10]}</b></td><td>${esc(cxDe(i))}</td><td>${esc(p[3])}</td><td class="cod">${esc(p[6])}</td>
       <td><span class="badge ${cls(p[2])}">${p[2]==='Lançamento'?'L':p[2]}</span></td>
-      <td>${S.cli===null?'—':`<span class="st ${ok?'s':'n'}">${ok?'Compra':'Não compra'}</span>`}</td>
+      <td>${S.cli===null?'—':`<span class="st ${ok?'s':(x&&x.g>0)?'a':'n'}" ${(!ok&&x&&x.g>0)?'title="Comprou e devolveu"':''}>${ok?'Compra':(x&&x.g>0)?'Devolveu':'Não compra'}</span>`}</td>
       <td class="n">${ok?fmtN(x.q):(S.cli===null?'':'<span style="color:#c4c9c6">0</span>')}</td><td>${ok&&x.last?serial2str(x.last):''}</td></tr>`;}).join('')
     :'<tr><td colspan="10" class="vazio">Nenhum produto na seleção.</td></tr>';
 }
@@ -735,14 +735,17 @@ $('fileImp').onchange=async e=>{
     const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true}); const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true});
     const h=rows[0]; if(h[16]!=='Cliente'||h[23]!=='Nº peça fabricante') throw new Error('Layout diferente da planilha "Base Dados" de vendas.');
     const pidx=new Map(P.map((p,i)=>[p[0],i])); const cidx=new Map(C.map((c,i)=>[c[0],i])); const ridx=new Map(R.map((r,i)=>[r,i]));
+    // mesma regra do gerador: código exato -> um dos códigos de "a/b" -> 8 primeiros dígitos (só se forem de uma peça só)
+    const pref=new Map(); P.forEach((p,i)=>{ const k=p[0].slice(0,8); pref.set(k,pref.has(k)?-1:i); });
+    const resolverPeca=cod=>{ if(pidx.has(cod)) return pidx.get(cod); for(const q of cod.replace(/\s/g,'').split('/')) if(pidx.has(q)) return pidx.get(q); const k=pref.get(cod.slice(0,8)); return (k!==undefined&&k>=0)?k:undefined; };
     const agg=new Map(); let usadas=0;
     for(const r of rows.slice(1)){
       if(!r[16]) continue; let d=r[15]; d=d instanceof Date?d:(typeof d==='number'?new Date(Date.UTC(1899,11,30)+d*864e5):null); if(!d) continue;
       const rep=String(r[22]||'SEM VENDEDOR').trim(); if(!ridx.has(rep)){ridx.set(rep,R.length);R.push(rep);}
       const cod=String(r[16]).trim(); if(!cidx.has(cod)){cidx.set(cod,C.length);C.push([cod,String(r[17]||'').trim(),String(r[25]||'').trim(),String(r[27]||'').trim(),ridx.get(rep)]);}
-      const pi=pidx.get(String(r[23]||'').trim()); if(pi===undefined) continue; usadas++;
-      const ym=d.toISOString().slice(0,7), k=cidx.get(cod)+'|'+pi+'|'+ym, a=agg.get(k)||[cidx.get(cod),pi,ym,0,0,0];
-      a[3]+=+r[3]||0; a[4]+=+r[14]||0; a[5]=Math.max(a[5],Math.round((d-Date.UTC(1899,11,30))/864e5)); agg.set(k,a);
+      const pi=resolverPeca(String(r[23]||'').trim()); if(pi===undefined) continue; usadas++;
+      const ym=d.toISOString().slice(0,7), k=cidx.get(cod)+'|'+pi+'|'+ym, a=agg.get(k)||[cidx.get(cod),pi,ym,0,0,0,0];
+      a[3]+=+r[3]||0; a[4]+=+r[14]||0; a[6]+=Math.max(+r[3]||0,0); a[5]=Math.max(a[5],Math.round((d-Date.UTC(1899,11,30))/864e5)); agg.set(k,a);
     }
     V=[...agg.values()]; S.cli=null; $('inpCli').value=''; iniciar();
     alert(`Planilha importada: ${usadas} linhas de peças de caixa.`);
