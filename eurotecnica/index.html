@@ -84,6 +84,24 @@ td.n,th.n{text-align:right}
 .link{color:var(--verde-esc);cursor:pointer;font-weight:700;text-decoration:underline}
 
 .tbl input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--verde)}
+.sec .vmode{float:right;display:inline-flex;border:1px solid var(--verde);border-radius:6px;overflow:hidden;margin:-3px 0 0;letter-spacing:0;text-transform:none}
+.sec .vmode a{margin:0;padding:2px 11px;cursor:pointer;color:var(--verde-esc);font-weight:700;text-decoration:none;font-size:11px}
+.sec .vmode a.on{background:var(--verde);color:#fff}
+.ms{position:relative;display:inline-block;min-width:340px;max-width:100%}
+.msbtn{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#fff;border:1px solid #c9ced4;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;text-align:left;color:var(--preto)}
+.msbtn:hover{border-color:var(--verde)}.mscar{color:var(--cinza)}
+.mspanel{position:absolute;z-index:30;top:calc(100% + 4px);left:0;width:440px;max-width:92vw;background:#fff;border:1px solid #c9ced4;border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.18);padding:8px}
+.mssearch{width:100%;margin-bottom:6px}
+.msacts{display:flex;gap:14px;font-size:10px;font-weight:800;margin:2px 4px 6px}.msacts a{color:var(--verde-esc);cursor:pointer;text-decoration:underline}
+.mslist{max-height:340px;overflow:auto}
+.msgrp{font-size:10px;font-weight:800;color:var(--cinza);text-transform:uppercase;padding:8px 6px 3px}
+.msopt{display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;cursor:pointer}
+.msopt:hover{background:var(--verde-claro)}
+.msopt.tem{background:#e6f6ec}.msopt.tem:hover{background:#d2eedd}
+.chip.tem:not(.on){background:#e3f5ea;border-color:#7cc59b;color:#14532d}
+.chip.tem:not(.on) i{background:#c4e8d2;color:#14532d}.msopt .mstxt{flex:1}
+.msopt i{font-style:normal;font-size:11px;background:#eef1f3;border-radius:8px;padding:0 7px;color:#555}
+.msvazio{padding:10px;color:var(--cinza)}
 .mais{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1.5px solid var(--verde);border-radius:50%;color:var(--verde);font-weight:900;line-height:1;cursor:pointer;user-select:none}
 .mais:hover,.mais.on{background:var(--verde);color:#fff}
 tr.sub td{background:#f6faf8;padding:8px 14px 10px 44px}
@@ -162,9 +180,9 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
   <div id="gFiltros">
   <div class="sec">Montadora <a id="limpM">LIMPAR</a></div><div class="chips" id="chM"></div>
   <div class="sec">Caixas e famílias sem caixa (selecione uma ou mais) <a id="selTodas">SELECIONAR TODAS</a><a id="limpC">LIMPAR</a></div>
-  <div class="chips" id="chC"></div>
+  <div class="ms" id="msCx"></div>
   <div class="sec">Grupo de peça (opcional) <a id="limpG">LIMPAR</a></div><div class="chips" id="chG"></div>
-  <div class="sec">Linha (opcional) <a id="limpL">LIMPAR</a></div><div class="chips" id="chL"></div>
+  <div class="sec">Linha (opcional) <a id="limpL">LIMPAR</a></div><div class="ms" id="msLin"></div>
   </div>
 
   <div id="vCli">
@@ -185,7 +203,7 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
   </div>
 
   <div id="vDist" hidden>
-    <div id="dFilSec" hidden><div class="sec">Filial <small style="text-transform:none;font-weight:400">— escolha uma loja para ver só o estoque e as vendas dela</small></div><div class="chips" id="dFil"></div></div>
+    <div id="dFilSec" hidden><div class="sec">Filial <small style="text-transform:none;font-weight:400">— marque uma ou mais lojas para ver só o estoque e as vendas delas · <span style="background:#e3f5ea;border:1px solid #7cc59b;border-radius:4px;padding:0 6px;color:#14532d">verde claro = tem estoque</span></small></div><div class="ms" id="msFil"></div></div>
     <div id="dUfSec" hidden><div class="sec">Local (UF das lojas) — opcional <a id="dUfLimpar">LIMPAR</a></div><div class="chips" id="dUf"></div></div>
     <div class="kpis">
       <div class="kpi sel"><b id="dKSel">0</b><span>Códigos da fábrica na seleção</span></div>
@@ -269,7 +287,7 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const ordCurva = {AA:0,A:1,B:2,C:3,'Lançamento':4};
 const cls = c => c==='Lançamento'?'cL':'c'+c;
 
-const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), lin:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli', visao:'cli', plFab:'', plPer:'', plBusca:'', dist:0, dSt:'', dBusca:'', dSort:['curva',1], dLeit:'est', dTipo:null, dUf:new Set(), dOpen:new Set(), dMarc:new Set(), dSoSel:false, dFil:null };
+const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), lin:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli', visao:'cli', plFab:'', plPer:'', plBusca:'', dist:0, dSt:'', dBusca:'', dSort:['curva',1], dLeit:'est', dTipo:null, dUf:new Set(), dOpen:new Set(), dMarc:new Set(), dSoSel:false, dFils:new Set() };
 
 function indexar(){
   // vendas por cliente: Map cli -> Map part -> {q,v,last}   (respeita o período)
@@ -287,6 +305,53 @@ function indexar(){
 const CXN=P.map(()=>[]); CX.forEach(c=>c.p.forEach(i=>CXN[i].push(c.n)));
 const cxDe=i=>S.cx.size?CXN[i].filter(n=>S.cx.has(n)).join(', '):CXN[i].join(', ');
 // tabelas grandes: monta só as primeiras linhas e vai acrescentando conforme a rolagem
+// lista suspensa com seleção múltipla, busca e % por opção (a lista só é refeita; o campo de busca e o painel continuam abertos)
+const MS={};
+const VIS={msCx:'lista',msLin:'lista',msFil:'lista'};
+try{ Object.assign(VIS,JSON.parse(localStorage.getItem('euro_vis')||'{}')); }catch(e){}
+function msModo(id,modo){ VIS[id]=modo; try{ localStorage.setItem('euro_vis',JSON.stringify(VIS)); }catch(e){} delete MS[id]; document.getElementById(id).innerHTML=''; msToggles(); aplicarFiltros(); }
+function msToggles(){ ['msCx','msLin','msFil'].forEach(id=>{ const t=document.querySelector(`.vmode[data-vm="${id}"]`); if(t) t.querySelectorAll('a').forEach(a=>a.classList.toggle('on',a.dataset.md===VIS[id])); }); }
+function msInitToggles(){ ['msCx','msLin','msFil'].forEach(id=>{ const sec=document.getElementById(id).previousElementSibling; if(!sec||sec.querySelector('.vmode')) return;
+  sec.insertAdjacentHTML('beforeend',`<span class="vmode" data-vm="${id}"><a data-md="grade" title="Ver todos os botões">▦ Grade</a><a data-md="lista" title="Ver em lista suspensa, com busca">▾ Lista</a></span>`);
+  sec.querySelector('.vmode').onclick=e=>{ const m=e.target.dataset.md; if(m&&m!==VIS[id]) msModo(id,m); }; }); msToggles(); }
+function msRender(id,cfg){
+  const el=document.getElementById(id); let st=MS[id];
+  if(VIS[id]==='grade'){
+    el.className='chips'; el.dataset.modo='grade';
+    el.innerHTML=(cfg.todo?`<span class="chip ${cfg.sel.size?'':'on'}" data-ov="__todos">${esc(cfg.todo.t)}${cfg.todo.b!==undefined?`<i>${cfg.todo.b}</i>`:''}</span>`:'')
+      +cfg.opcoes.map(o=>`<span class="chip ${cfg.sel.has(o.v)?'on':''} ${o.tem?'tem':''}" data-ov="${esc(o.v)}"${o.tem?' title="Tem estoque"':''}>${esc(o.t)}${o.b!==undefined?`<i>${o.b}</i>`:''}</span>`).join('');
+    el.onclick=e=>{ const c=e.target.closest('[data-ov]'); if(!c) return; if(c.dataset.ov==='__todos') cfg.onLimpar(); else cfg.onToggle(c.dataset.ov); };
+    return;
+  }
+  if(el.dataset.modo==='grade'){ el.className='ms'; el.dataset.modo=''; el.onclick=null; el.innerHTML=''; delete MS[id]; st=null; }
+  if(!st){
+    st=MS[id]={aberto:false,busca:''};
+    el.innerHTML='<button type="button" class="msbtn"><span class="mslab"></span><span class="mscar">▾</span></button><div class="mspanel" hidden><input class="mssearch" type="text" placeholder="Buscar…"><div class="msacts"><a data-a="todos">SELECIONAR TODAS</a><a data-a="limpar">LIMPAR</a></div><div class="mslist"></div></div>';
+    const painel=el.querySelector('.mspanel');
+    el.querySelector('.msbtn').onclick=e=>{ e.stopPropagation(); const abre=!st.aberto; msFecharTodas(); st.aberto=abre; painel.hidden=!abre; if(abre) el.querySelector('.mssearch').focus(); };
+    painel.onclick=e=>e.stopPropagation();
+    el.querySelector('.mssearch').oninput=e=>{ st.busca=e.target.value; msLista(id); };
+    el.querySelector('.msacts').onclick=e=>{ const a=e.target.dataset.a; if(a==='todos') st.cfg.onTodos(); else if(a==='limpar') st.cfg.onLimpar(); };
+    el.querySelector('.mslist').onclick=e=>{ const o=e.target.closest('[data-ov]'); if(o) st.cfg.onToggle(o.dataset.ov); };
+  }
+  st.cfg=cfg; msLista(id);
+}
+function msLista(id){
+  const el=document.getElementById(id), st=MS[id], c=st.cfg, q=normTxt(st.busca);
+  el.querySelector('.mslab').textContent=c.rotulo();
+  const lista=el.querySelector('.mslist'), top=lista.scrollTop; let h='', grp=null;
+  for(const o of c.opcoes){
+    if(q&&!normTxt(o.t).includes(q)) continue;
+    if(o.g!==undefined&&o.g!==grp){ grp=o.g; h+=`<div class="msgrp">${esc(grp)}</div>`; }
+    h+=`<div class="msopt ${o.tem?'tem':''}" data-ov="${esc(o.v)}"${o.tem?' title="Tem estoque"':''}><input type="checkbox" tabindex="-1" ${c.sel.has(o.v)?'checked':''}><span class="mstxt">${esc(o.t)}</span>${o.b!==undefined?`<i>${o.b}</i>`:''}</div>`;
+  }
+  lista.innerHTML=h||'<div class="msvazio">Nada encontrado</div>'; lista.scrollTop=top;
+}
+function msFecharTodas(){ for(const id in MS){ if(MS[id].aberto){ MS[id].aberto=false; document.querySelector('#'+id+' .mspanel').hidden=true; } } }
+document.addEventListener('click',msFecharTodas);
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') msFecharTodas(); });
+const msRotulo=(sel,nomes,vazio)=>sel.size===0?vazio:(sel.size<=2?[...sel].map(v=>nomes[v]||v).join(' + '):sel.size+' selecionados');
+const aplicarFiltros=()=>{ desenharChips(); desenhar(); salvarEstado(); };
 const CHUNK=120;
 function renderChunk(key,tbody,lista,fn,vazio){
   S._ch=S._ch||{}; const st=S._ch[key]={lista,fn,tbody,n:0};
@@ -313,6 +378,7 @@ function iniciar(){
   $('selRep').innerHTML='<option value="-1">Todos os representantes</option>'+R.map((r,i)=>[r,i]).sort((a,b)=>a[0].localeCompare(b[0])).map(([r,i])=>`<option value="${i}">${esc(r)}</option>`).join('');
   const nv=new Set(V.map(v=>v[0])).size;
   $('infoBase').textContent=`${fmtN(P.length)} códigos · ${CX.length} caixas · ${fmtN(C.length)} clientes · ${fmtN(nv)} compraram caixa`;
+  msInitToggles();
   if(!S._restaurado){ S._restaurado=1; restaurarEstado(); }
   popularDist(); indexar(); desenharChips(); desenhar();
 }
@@ -332,11 +398,19 @@ function cobCaixa(c){ // % do cliente (ou do distribuidor) nessa caixa
 function desenharChips(){
   const monts=[...new Set(CX.map(c=>c.m))];
   $('chM').innerHTML=monts.map(m=>`<span class="chip mont ${S.mont.has(m)?'on':''}" data-m="${esc(m)}">${esc(m)}</span>`).join('');
-  $('chC').innerHTML=caixasVisiveis().map(c=>{ const p=cobCaixa(c);
-    return `<span class="chip ${S.cx.has(c.n)?'on':''}" data-c="${esc(c.n)}">${esc(c.n)}${p!==null?`<i>${p}%</i>`:`<i>${c.p.length}</i>`}</span>`; }).join('');
+  const vis=caixasVisiveis();
+  msRender('msCx',{opcoes:vis.map(c=>{ const p=cobCaixa(c); return {v:c.n,t:c.n,b:p!==null?p+'%':c.p.length,g:c.m}; }),sel:S.cx,
+    rotulo:()=>msRotulo(S.cx,{},`Todas as caixas e famílias (${vis.length})`),
+    onToggle:v=>{ S.cx.has(v)?S.cx.delete(v):S.cx.add(v); aplicarFiltros(); },
+    onTodos:()=>{ vis.forEach(c=>S.cx.add(c.n)); aplicarFiltros(); },
+    onLimpar:()=>{ S.cx.clear(); aplicarFiltros(); }});
   const gr={}; CX.forEach(c=>c.p.forEach(i=>{const g=P[i][3]||'Outros'; gr[g]=(gr[g]||0)+1;}));
   const ln={}; P.forEach(x=>{ const l=x[4]||'—'; ln[l]=(ln[l]||0)+1; });
-  $('chL').innerHTML=Object.keys(ln).sort((a,b)=>ln[b]-ln[a]).map(l=>`<span class="chip ${S.lin.has(l)?'on':''}" data-l="${esc(l)}">${esc(l)}<i>${ln[l]}</i></span>`).join('');
+  msRender('msLin',{opcoes:Object.keys(ln).sort((a,b)=>ln[b]-ln[a]).map(l=>({v:l,t:l,b:ln[l]})),sel:S.lin,
+    rotulo:()=>msRotulo(S.lin,{},'Todas as linhas'),
+    onToggle:v=>{ S.lin.has(v)?S.lin.delete(v):S.lin.add(v); aplicarFiltros(); },
+    onTodos:()=>{ Object.keys(ln).forEach(l=>S.lin.add(l)); aplicarFiltros(); },
+    onLimpar:()=>{ S.lin.clear(); aplicarFiltros(); }});
   $('chG').innerHTML=Object.keys(gr).sort().map(g=>`<span class="chip ${S.grp.has(g)?'on':''}" data-g="${esc(g)}">${esc(g)}</span>`).join('');
 }
 
@@ -415,7 +489,7 @@ function detalheLojas(d,i,colunas){ // painel do "+": todas as lojas (no filtro 
 const lojaOkD=(d,l)=>!S.dUf.size||S.dUf.has(ufLojaD(d,l));
 function estPart(d,i,tipo){ // estoque do código nas lojas (respeita UF e, se pedido, o tipo)
   const e=d.e&&d.e[i]; const lj=[]; let q=0; if(!e) return {q,lj};
-  for(const l in e){ if(!lojaOkD(d,l)) continue; if(S.dFil&&l!==S.dFil) continue; if(tipo&&tipoLojaD(d,l)!==tipo) continue; if(e[l]>0){ q+=e[l]; lj.push([l,e[l]]); } }
+  for(const l in e){ if(!lojaOkD(d,l)) continue; if(S.dFils.size&&!S.dFils.has(l)) continue; if(tipo&&tipoLojaD(d,l)!==tipo) continue; if(e[l]>0){ q+=e[l]; lj.push([l,e[l]]); } }
   lj.sort((a,b)=>b[1]-a[1]); return {q,lj};
 }
 function atualizarMarcas(temRepo){  // rótulos dos botões e caixa do cabeçalho conforme os itens marcados (sem redesenhar a tabela)
@@ -434,14 +508,22 @@ function desenharDist(){
   const vend=d&&d.vendas; const vp=i=>S._vp.get(i)||{q:0,v:0,cl:new Set()};
   const sold=i=>vend&&vp(i).q>0;
   const lojasVis=est?(d.lojas||[]).filter(l=>lojaOkD(d,l)):[];
-  if(S.dFil&&!lojasVis.includes(S.dFil)) S.dFil=null;
+  if(S.dFils.size) S.dFils=new Set([...S.dFils].filter(l=>lojasVis.includes(l)));
   $('dFilSec').hidden=!(est&&lojasVis.length>1);
   // % de cada loja = parte dos códigos da seleção (montadora/caixas/grupo) que têm estoque nela; "Grupo todo" = códigos com estoque em alguma loja
   const cobL={}; let cobG=0; const visSet=new Set(lojasVis);
   if(est&&base.length){ base.forEach(i=>{ const e=d.e&&d.e[i]; if(!e) return; let any=false; for(const l in e){ if(e[l]>0&&visSet.has(l)){ cobL[l]=(cobL[l]||0)+1; any=true; } } if(any) cobG++; }); }
-  const pct=n=>base.length?Math.round(100*(n||0)/base.length)+'%':'—';
-  $('dFil').innerHTML=`<span class="chip ${S.dFil?'':'on'}" data-dfil="">Grupo todo (${lojasVis.length} filiais) <i>${pct(cobG)}</i></span>`+lojasVis.slice().sort().map(l=>{ const n=d.lj&&d.lj[l]?d.lj[l].n:''; return `<span class="chip ${S.dFil===l?'on':''}" data-dfil="${esc(l)}" title="${cobL[l]||0} de ${base.length} códigos com estoque nesta loja">${esc(n?n+' ('+l+')':l)} <i>${pct(cobL[l])}</i></span>`; }).join('');
-  const vendF=i=>{ if(!S.dFil) return vp(i).q; const vm=d.vl&&d.vl[i]&&d.vl[i][S.dFil]; return vm?vm.slice(0,d.nm).reduce((a,x)=>a+x,0):0; };
+  const pct=n=>{ if(!base.length) return '—'; const v=100*(n||0)/base.length; return (n>0&&v<0.5)?'<1%':Math.round(v)+'%'; };
+  if(est&&lojasVis.length>1){
+    const nomeL=l=>{ const n=d.lj&&d.lj[l]?d.lj[l].n:''; return n?n+' ('+l+')':l; };
+    const nomes={}; lojasVis.forEach(l=>nomes[l]=nomeL(l));
+    msRender('msFil',{todo:{t:`Grupo todo (${lojasVis.length} filiais)`,b:pct(cobG)},opcoes:lojasVis.slice().sort().map(l=>({v:l,t:nomes[l],b:pct(cobL[l]),tem:(cobL[l]||0)>0})),sel:S.dFils,
+      rotulo:()=>S.dFils.size===0?`Grupo todo (${lojasVis.length} filiais) — ${pct(cobG)}`:msRotulo(S.dFils,nomes,''),
+      onToggle:v=>{ S.dFils.has(v)?S.dFils.delete(v):S.dFils.add(v); aplicarFiltros(); },
+      onTodos:()=>{ lojasVis.forEach(l=>S.dFils.add(l)); aplicarFiltros(); },
+      onLimpar:()=>{ S.dFils.clear(); aplicarFiltros(); }});
+  }
+  const vendF=i=>{ if(!S.dFils.size) return vp(i).q; const vm=d.vl&&d.vl[i]; let t=0; if(vm) S.dFils.forEach(l=>{ if(vm[l]) t+=vm[l].slice(0,d.nm).reduce((a,x)=>a+x,0); }); return t; };
   const eq=new Map(); if(est) base.forEach(i=>eq.set(i,estPart(d,i,null).q));
   const nab=new Map(); if(est) base.forEach(i=>{ const n=lojasAbaixoQA(d,i); if(n) nab.set(i,n); });
   const tem=est?(i=>eq.get(i)>0):cad;
@@ -487,7 +569,7 @@ function desenharDist(){
   const val=(i,k)=>({cod:P[i][0],desc:P[i][1],qa:P[i][10],cx:cxDe(i),grupo:P[i][3],curva:ordCurva[P[i][2]]??9,st:tem(i)?1:0,dcod:codD(i),est:eq.get(i)||0,q:vendF(i),cl:vp(i).cl.size}[k]);
   const [k,dir]=S.dSort; lista.sort((a,b)=>{const x=val(a,k),y=val(b,k); return (x>y?1:x<y?-1:0)*dir||(P[a][0]>P[b][0]?1:-1);});
   S._rowsD=lista;
-  const cols=est?[['','' ],['dcod','Cód. Padre Cícero'],['cod','Código fábrica'],['desc','Produto'],['qa','Qtd. aplicada','n'],['cx','Caixa(s)'],['grupo','Grupo'],['curva','Curva'],['st','Status'],['chk',''],['est',S.dFil?'Estoque '+S.dFil:'Estoque geral','n'],['q',S.dFil?'Vendido '+S.dFil:'Vendido geral','n']]
+  const cols=est?[['','' ],['dcod','Cód. Padre Cícero'],['cod','Código fábrica'],['desc','Produto'],['qa','Qtd. aplicada','n'],['cx','Caixa(s)'],['grupo','Grupo'],['curva','Curva'],['st','Status'],['chk',''],['est',S.dFils.size?'Estoque '+(S.dFils.size===1?[...S.dFils][0]:S.dFils.size+' filiais'):'Estoque geral','n'],['q',S.dFils.size?'Vendido '+(S.dFils.size===1?[...S.dFils][0]:S.dFils.size+' filiais'):'Vendido geral','n']]
                :[['cod','Código fábrica'],['desc','Produto'],['qa','Qtd. aplicada','n'],['cx','Caixa(s)'],['grupo','Grupo'],['curva','Curva'],['st','Distribuidor'],['dcod','Cód. no distribuidor']];
   if(!est&&vend) cols.push(['q','Qtd vendida','n'],['cl','Clientes','n']);
   if(est&&!vend){ cols.pop(); }
@@ -633,7 +715,7 @@ document.addEventListener('click',e=>{
     if(abre){ if(!(prox&&prox.classList.contains('sub'))) tr.insertAdjacentHTML('afterend',`<tr class="sub"><td colspan="${tr.cells.length}">${detalheLojas(D[S.dist],i)}</td></tr>`); }
     else if(prox&&prox.classList.contains('sub')) prox.remove();
     return; }
-  const t=e.target.closest('[data-m],[data-c],[data-g],[data-l],[data-cv],[data-s],[data-ds],[data-v],[data-ci],[data-mais],[data-tipo],[data-duf],[data-dfil]'); if(!t){ $('ddCli').hidden=true; return; }
+  const t=e.target.closest('[data-m],[data-c],[data-g],[data-l],[data-cv],[data-s],[data-ds],[data-v],[data-ci],[data-mais],[data-tipo],[data-duf]'); if(!t){ $('ddCli').hidden=true; return; }
   if(t.dataset.m!==undefined){ toggle(S.mont,t.dataset.m); S.cx=new Set([...S.cx].filter(n=>caixasVisiveis().some(c=>c.n===n))); desenharChips(); }
   else if(t.dataset.c!==undefined){ toggle(S.cx,t.dataset.c); desenharChips(); }
   else if(t.dataset.g!==undefined){ toggle(S.grp,t.dataset.g); desenharChips(); }
@@ -642,7 +724,6 @@ document.addEventListener('click',e=>{
   else if(t.dataset.v!==undefined){ S.view=t.dataset.v; }
   else if(t.dataset.ci!==undefined){ escolherCliente(+t.dataset.ci); S.view='cli'; }
   else if(t.dataset.mais!==undefined){ const i=+t.dataset.mais; S.dOpen.has(i)?S.dOpen.delete(i):S.dOpen.add(i); }
-  else if(t.dataset.dfil!==undefined){ S.dFil=t.dataset.dfil||null; }
   else if(t.dataset.tipo!==undefined){ S.dTipo=S.dTipo===t.dataset.tipo?null:t.dataset.tipo; }
   else if(t.dataset.duf!==undefined){ toggle(S.dUf,t.dataset.duf); }
   else if(t.dataset.ds!==undefined){ S._dSortUser=1; S.dSort=[t.dataset.ds,S.dSort[0]===t.dataset.ds?-S.dSort[1]:1]; }
@@ -692,7 +773,7 @@ $('dBtnRepo').onclick=()=>{
   if(!d||!d.e||!d.vl||!d.nm){ alert('Este distribuidor não tem planilha de vendas por loja: não dá para gerar a sugestão de reposição.'); return; }
   let lista=S._rowsD.slice(); if(S.dMarc.size) lista=lista.filter(i=>S.dMarc.has(i));   // só os marcados, se houver
   if(!lista.length){ alert('Nenhum produto na lista atual.'); return; }
-  const filiais=S.dFil?[S.dFil]:(d.lojas||[]).filter(l=>lojaOkD(d,l)&&(!S.dTipo||tipoLojaD(d,l)===S.dTipo));
+  const filiais=S.dFils.size?[...S.dFils]:(d.lojas||[]).filter(l=>lojaOkD(d,l)&&(!S.dTipo||tipoLojaD(d,l)===S.dTipo));
   const meses=d.nm, nomeLoja=c=>((d.lj&&d.lj[c])||{}).n||'';
   const cidadeUf=c=>{ const i=d.lj&&d.lj[c]; return [i&&nomeCidade(i.c),ufLojaD(d,c)!=='—'?ufLojaD(d,c):''].filter(Boolean).join(' / '); };
   const ordemCurva={AA:0,A:1,B:2,C:3,'Lançamento':4}; const linhas=[];
@@ -719,7 +800,7 @@ $('dBtnRepo').onclick=()=>{
   for(let c=0;c<=cabR.e.c;c++){ const ce=wsR[XLSX.utils.encode_cell({r:0,c})]; if(ce) ce.s=est; }
   wsR['!cols']=[8,28,14,22,26].map(w=>({wch:w}));
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,wsR,'Resumo'); XLSX.utils.book_append_sheet(wb,ws,'Reposição');
-  XLSX.writeFile(wb,`Sugestao_Reposicao_${S.dFil||'TODAS'}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb,`Sugestao_Reposicao_${S.dFils.size===1?[...S.dFils][0]:S.dFils.size?'FILIAIS':'TODAS'}_${new Date().toISOString().slice(0,10)}.xlsx`);
 };
 $('dBtnExp').onclick=()=>{ const d=D[S.dist]; const vp=i=>S._vp.get(i)||{q:0,v:0,cl:new Set()}; const est=d.e&&S.dLeit==='est';
   const rows=S.dMarc.size?S._rowsD.filter(i=>S.dMarc.has(i)):S._rowsD;
@@ -828,7 +909,7 @@ $('fileImp').onchange=async e=>{
 // ---- lembra a tela e os filtros: ao atualizar (F5) volta para o mesmo lugar
 function salvarEstado(){ try{ localStorage.setItem('euro_estado',JSON.stringify({visao:S.visao,view:S.view,cli:S.cli!==null&&C[S.cli]?C[S.cli][0]:null,rep:S.rep>=0?R[S.rep]:null,per:S.per,
   mont:[...S.mont],cx:[...S.cx],grp:[...S.grp],lin:[...S.lin],curva:S.curva,st:S.st,busca:S.busca,sortP:S.sortP,sortX:S.sortX,buscaCx:$('buscaCx').value,
-  dist:D[S.dist]?D[S.dist].n:null,dLeit:S.dLeit,dTipo:S.dTipo,dUf:[...S.dUf],dFil:S.dFil,dSt:S.dSt,dBusca:S.dBusca,dSort:S.dSort,dSortUser:!!S._dSortUser,plFab:S.plFab,plPer:S.plPer,plBusca:S.plBusca})); }catch(e){} }
+  dist:D[S.dist]?D[S.dist].n:null,dLeit:S.dLeit,dTipo:S.dTipo,dUf:[...S.dUf],dFil:[...S.dFils],dSt:S.dSt,dBusca:S.dBusca,dSort:S.dSort,dSortUser:!!S._dSortUser,plFab:S.plFab,plPer:S.plPer,plBusca:S.plBusca})); }catch(e){} }
 function restaurarEstado(){
   let e=null; try{ e=JSON.parse(localStorage.getItem('euro_estado')||'null'); }catch(_){} if(!e) return;
   try{
@@ -842,7 +923,7 @@ function restaurarEstado(){
     S.curva=e.curva||null; S.st=e.st||''; S.busca=e.busca||''; if(e.sortP) S.sortP=e.sortP; if(e.sortX) S.sortX=e.sortX;
     const di=e.dist?D.findIndex(d=>d.n===e.dist):-1; if(di>=0) S.dist=di;
     if(['est','cad'].includes(e.dLeit)) S.dLeit=e.dLeit;
-    S.dTipo=e.dTipo||null; S.dUf=new Set(e.dUf||[]); S.dFil=e.dFil||null; S.dSt=e.dSt||''; S._dStKeep=S.dSt; S.dBusca=e.dBusca||''; if(e.dSort) S.dSort=e.dSort; if(e.dSortUser) S._dSortUser=1;
+    S.dTipo=e.dTipo||null; S.dUf=new Set(e.dUf||[]); S.dFils=new Set(Array.isArray(e.dFil)?e.dFil:(e.dFil?[e.dFil]:[])); S.dSt=e.dSt||''; S._dStKeep=S.dSt; S.dBusca=e.dBusca||''; if(e.dSort) S.dSort=e.dSort; if(e.dSortUser) S._dSortUser=1;
     S.plFab=FB.includes(e.plFab)?e.plFab:''; S.plPer=PER[e.plPer]?e.plPer:''; S.plBusca=e.plBusca||'';
     // campos da tela
     $('selVisao').value=S.visao; $('selPer').value=S.per; $('selRep').value=String(S.rep); $('selLeit').value=S.dLeit;
