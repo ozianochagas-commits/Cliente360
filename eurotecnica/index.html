@@ -119,6 +119,9 @@ table.lojas .q,table.lojas th.q{text-align:right}
 .tchip.on{outline:2px solid var(--verde)}.tchip.cd{border-left-color:var(--verde)}
 .tchip .pc{font-weight:800;font-size:15px}
 .st.a{background:var(--b)}
+.kpi small{display:block;color:var(--cinza);font-size:11px;margin-top:2px}
+#dKpis{grid-template-columns:repeat(auto-fit,minmax(185px,1fr))}
+.bar.b2{height:3px;margin-top:3px;background:#eef1f3}
 .pg{display:grid;grid-template-columns:1fr 290px;gap:14px;margin-top:6px}
 .fabs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin:8px 0 14px}
 .fab{border:1px solid var(--borda);border-radius:8px;padding:10px 14px;background:#fff;cursor:pointer;border-left:4px solid var(--verde)}
@@ -206,11 +209,12 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
   <div id="vDist" hidden>
     <div id="dFilSec" hidden><div class="sec">Filial <small style="text-transform:none;font-weight:400">— marque uma ou mais lojas para ver só o estoque e as vendas delas · <span style="background:#e3f5ea;border:1px solid #7cc59b;border-radius:4px;padding:0 6px;color:#14532d">verde claro = tem estoque</span></small></div><div class="ms" id="msFil"></div></div>
     <div id="dUfSec" hidden><div class="sec">Local (UF das lojas) — opcional <a id="dUfLimpar">LIMPAR</a></div><div class="chips" id="dUf"></div></div>
-    <div class="kpis">
+    <div class="kpis" id="dKpis">
       <div class="kpi sel"><b id="dKSel">0</b><span>Códigos da fábrica na seleção</span></div>
-      <div class="kpi ja"><b id="dKTem">0</b><span>Distribuidor tem</span></div>
-      <div class="kpi op"><b id="dKNao">0</b><span>Fábrica tem e distribuidor não</span></div>
-      <div class="kpi cob"><b id="dKCob">0%</b><span>Cobertura do distribuidor</span></div>
+      <div class="kpi ja"><b id="dKCad">0</b><span>Cadastrados no distribuidor</span><small id="dKCadP"></small></div>
+      <div class="kpi op"><b id="dKFalta">0</b><span>Faltam cadastrar (fábrica tem, distribuidor não)</span><small id="dKFaltaP"></small></div>
+      <div class="kpi" id="dKEstBox"><b id="dKEst" style="color:var(--verde-esc)">0</b><span>Com estoque</span><small id="dKEstP"></small></div>
+      <div class="kpi" id="dKSemBox"><b id="dKSem" style="color:var(--b)">0</b><span>Cadastrados sem estoque</span><small id="dKSemP"></small></div>
     </div>
     <div class="curvas" id="dCurvas"></div>
     <div class="tchips" id="dTipo" hidden></div>
@@ -538,18 +542,25 @@ function desenharDist(){
   const ufs=est?[...new Set((d.lojas||[]).map(l=>ufLojaD(d,l)))].sort():[];
   $('dUfSec').hidden=!(est&&ufs.length>1);
   $('dUf').innerHTML=ufs.map(u=>`<span class="chip ${S.dUf.has(u)?'on':''}" data-duf="${u}">${u}</span>`).join('');
-  const nTem=base.filter(tem).length;
-  const rot=est?['Códigos da fábrica na seleção','Com estoque','Sem estoque (fábrica tem)','Cobertura de estoque']:['Códigos da fábrica na seleção','Distribuidor tem','Fábrica tem e distribuidor não','Cobertura do distribuidor'];
-  document.querySelectorAll('#vDist .kpis .kpi span').forEach((el,k)=>el.textContent=rot[k]);
-  $('dKSel').textContent=fmtN(base.length); $('dKTem').textContent=fmtN(nTem); $('dKNao').textContent=fmtN(base.length-nTem);
-  $('dKCob').textContent=base.length?(100*nTem/base.length).toFixed(1)+'%':'—';
+  // cadastro e estoque são coisas diferentes: "cadastrado" = está no cadastro do distribuidor (ou tem saldo em alguma loja); "com estoque" = saldo > 0
+  const cadE=i=>cad(i)||(est&&eq.get(i)>0);
+  const nCad=base.filter(cadE).length, nEst=est?base.filter(tem).length:0, nSem=est?base.filter(i=>cadE(i)&&!tem(i)).length:0;
+  const pc1=(n,t)=>t?(100*n/t).toFixed(1)+'%':'—';
+  $('dKSel').textContent=fmtN(base.length);
+  $('dKCad').textContent=fmtN(nCad); $('dKCadP').textContent=pc1(nCad,base.length)+' da seleção';
+  $('dKFalta').textContent=fmtN(base.length-nCad); $('dKFaltaP').textContent=pc1(base.length-nCad,base.length)+' · oportunidade de cadastro';
+  $('dKEstBox').hidden=!est; $('dKSemBox').hidden=!est;
+  $('dKEst').textContent=fmtN(nEst); $('dKEstP').textContent=pc1(nEst,base.length)+' da seleção';
+  $('dKSem').textContent=fmtN(nSem); $('dKSemP').textContent='tem cadastro, mas sem saldo';
   const grupos=[['AA / A',['AA','A'],'--aa'],['B',['B'],'--b'],['C',['C'],'--c'],['Lançamentos',['Lançamento'],'--l']];
   if(base.some(i=>!P[i][2])) grupos.push(['Sem curva',[''],'--c']);
   $('dCurvas').innerHTML=grupos.map(([nome,cs,cor])=>{
-    const t=base.filter(i=>cs.includes(P[i][2])), j=t.filter(tem); const pc=t.length?100*j.length/t.length:0;
+    const t=base.filter(i=>cs.includes(P[i][2])), jc=t.filter(cadE).length, je=est?t.filter(tem).length:0;
+    const pc=t.length?100*jc/t.length:0, pe=t.length?100*je/t.length:0;
     return `<div class="cv ${S.curva===nome?'on':''}" data-cv="${nome}"><h4><span>${nome==='Sem curva'?nome:'Curva '+nome}</span><span>${fmtN(t.length)} cód.</span></h4>
       <div class="pc" style="color:var(${cor})">${pc.toFixed(1)}%</div><div class="bar"><div style="width:${pc}%;background:var(${cor})"></div></div>
-      <small>${j.length} de ${t.length} códigos ${est?'com estoque':'o distribuidor tem'} · faltam ${t.length-j.length}</small></div>`;}).join('');
+      <small><b>${jc}</b> de ${t.length} cadastrados · faltam ${t.length-jc}</small>
+      ${est?`<div class="bar b2"><div style="width:${pe}%;background:var(--verde)"></div></div><small><b>${je}</b> com estoque (${pe.toFixed(1)}%) · ${jc-je} cadastrados sem estoque</small>`:''}</div>`;}).join('');
   const cvSel=grupos.find(g=>g[0]===S.curva);
   // Varejo × Atacado/CD (lojas Atacado/CD vêm da regra do distribuidor)
   if(est&&d.cd&&d.cd.length){
