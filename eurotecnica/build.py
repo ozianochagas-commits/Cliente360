@@ -55,6 +55,7 @@ def dt(v):
     return None
 cli, cidx, reps, ridx = [], {}, [], {}
 agg = collections.defaultdict(lambda: [0, 0.0, 0])
+tot = collections.defaultdict(float)
 lastrep = {}
 for r in rows[1:]:
     d = dt(r[15]); cod = s(r[23])
@@ -66,6 +67,7 @@ for r in rows[1:]:
         cidx[c] = len(cli); cli.append([c, s(r[17]), s(r[25]).title(), s(r[27]), ridx[rep]])
     ci = cidx[c]
     if ci not in lastrep or d >= lastrep[ci][0]: lastrep[ci] = (d, ridx[rep]); cli[ci][4] = ridx[rep]
+    tk = (ci, d.strftime('%Y-%m')); tot[tk] += r[14] or 0   # faturamento total (todas as peças) p/ Plano de Negócio
     if cod not in pidx: continue
     k = (ci, pidx[cod], d.strftime('%Y-%m'))
     a = agg[k]; a[0] += r[3] or 0; a[1] += r[14] or 0; a[2] = max(a[2], (d - datetime.datetime(1899, 12, 30)).days)
@@ -75,7 +77,8 @@ dpc = {}
 for cod, (c, desc, sit) in pc.items():
     if cod in pidx: dpc[pidx[cod]] = [c, desc, sit]
 D = [{'n': 'Padre Cícero', 'vendas': 1, 'c': dpc}]
-data = {'P': parts, 'CX': caixas, 'C': cli, 'R': reps, 'V': V, 'D': D}
+T = [[k[0], k[1], round(v, 2)] for k, v in tot.items()]
+data = {'P': parts, 'CX': caixas, 'C': cli, 'R': reps, 'V': V, 'D': D, 'T': T}
 tpl = open(os.path.join(here, 'template.html'), encoding='utf-8').read()
 out = tpl.replace('/*__DATA__*/null', json.dumps(data, ensure_ascii=False, separators=(',', ':')))
 open(os.path.join(here, 'index.html'), 'w', encoding='utf-8').write(out)

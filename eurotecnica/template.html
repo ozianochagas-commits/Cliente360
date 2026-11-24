@@ -79,14 +79,39 @@ td.n,th.n{text-align:right}
 .dd li small{color:var(--cinza)}
 .pill{background:var(--verde-claro);color:var(--verde-esc);border-radius:6px;padding:4px 8px;font-weight:700}
 .link{color:var(--verde-esc);cursor:pointer;font-weight:700;text-decoration:underline}
-@media(max-width:800px){.kpis,.curvas{grid-template-columns:repeat(2,1fr)}.dd ul{min-width:260px}}
+
+.pg{display:grid;grid-template-columns:1fr 290px;gap:14px;margin-top:6px}
+.fabs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin:8px 0 14px}
+.fab{border:1px solid var(--borda);border-radius:8px;padding:10px 14px;background:#fff;cursor:pointer;border-left:4px solid var(--verde)}
+.fab.on{outline:2px solid var(--verde)}
+.fab h4{margin:0 0 4px;font-size:13px;display:flex;justify-content:space-between}
+.fab small{display:block;color:var(--cinza);font-size:11px}
+.side{border:1px solid var(--borda);border-radius:8px;padding:12px 14px;background:#fff;align-self:start}
+.side .l{font-size:10px;text-transform:uppercase;color:var(--cinza);font-weight:700;margin-top:10px}
+.side .v{font-size:22px;font-weight:800}
+.side .big{border:1px solid var(--borda);border-left:4px solid var(--verde);border-radius:8px;padding:8px 12px;margin-top:12px}
+.side .big b{font-size:30px}
+.pp{font-weight:800}.pp.ok{color:var(--ok)}.pp.no{color:var(--nao)}
+tr.tot td{background:var(--verde);color:#fff;font-weight:800}
+.mini{height:4px;background:#e8ebee;border-radius:2px;margin-top:3px;overflow:hidden}.mini div{height:100%;background:var(--verde)}
+.ic{border:0;background:none;cursor:pointer;font-size:14px;padding:2px 4px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;display:flex;align-items:center;justify-content:center;padding:12px}
+.modal .box{background:#fff;border-radius:12px;max-width:560px;width:100%;padding:18px 20px;max-height:92vh;overflow:auto;border-top:5px solid var(--verde)}
+.modal h3{margin:0 0 10px}
+.modal label{display:block;font-size:11px;font-weight:700;color:var(--cinza);text-transform:uppercase;margin:10px 0 3px}
+.modal input,.modal select{width:100%}
+.modal .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.modal small{color:var(--cinza)}
+@media(max-width:800px){.pg{grid-template-columns:1fr}.kpis,.curvas{grid-template-columns:repeat(2,1fr)}.dd ul{min-width:260px}}
 </style>
 </head>
 <body>
 <div class="wrap">
 <div class="menuTop"><select id="selVisao" aria-label="Visão">
   <option value="cli">🎯&nbsp; Fábrica × Cliente</option>
-  <option value="dist">🏭&nbsp; Fábrica × Distribuidor</option></select></div>
+  <option value="dist">🏭&nbsp; Fábrica × Distribuidor</option>
+  <option value="plano">📋&nbsp; Plano de Negócio</option></select></div>
 <header>
   <h1>Cliente <span>360</span> · Eurotécnica</h1>
   <small>Estudo de cobertura por caixa de câmbio e curva — Supervisão de Vendas · Região Nordeste</small>
@@ -106,16 +131,18 @@ td.n,th.n{text-align:right}
       <div><label class="f">Distribuidor</label><br><select id="selDist" style="min-width:200px"></select></div>
       <div><label class="f">&nbsp;</label><br><button class="btn" id="btnImpDist">➕ Importar cadastro de distribuidor</button><input type="file" id="fileDist" accept=".xlsx,.xls" hidden></div>
     </div>
-    <div><label class="f">Período</label><br><select id="selPer"></select></div>
+    <div id="gPer"><label class="f">Período</label><br><select id="selPer"></select></div>
     <span class="pill" id="infoBase"></span>
   </div>
 
   <div class="tabs" id="tabsCli"><div class="tab on" data-v="cli">🎯 Cliente 360</div><div class="tab" data-v="cx">📦 Caixa × Clientes</div></div>
 
+  <div id="gFiltros">
   <div class="sec">Montadora <a id="limpM">LIMPAR</a></div><div class="chips" id="chM"></div>
   <div class="sec">Caixas (selecione uma ou mais) <a id="selTodas">SELECIONAR TODAS</a><a id="limpC">LIMPAR</a></div>
   <div class="chips" id="chC"></div>
   <div class="sec">Grupo de peça (opcional) <a id="limpG">LIMPAR</a></div><div class="chips" id="chG"></div>
+  </div>
 
   <div id="vCli">
     <div class="kpis">
@@ -151,6 +178,38 @@ td.n,th.n{text-align:right}
     <div class="tbl"><table><thead id="dTh"></thead><tbody id="dTb"></tbody></table></div>
   </div>
 
+  <div id="vPlano" hidden>
+    <div class="tools">
+      <span class="tit">📋 Plano de Negócio — painel geral das fábricas</span>
+      <button class="btn sol" id="plNovo">➕ Cadastrar novo plano</button>
+      <button class="btn" id="plFab">🏭 Nova fábrica</button>
+      <button class="btn" id="plExp">⬇ Exportar</button>
+    </div>
+    <div class="fabs" id="plFabs"></div>
+    <div class="tools">
+      <select id="plSelFab"></select>
+      <select id="plSelPer"></select>
+      <input type="text" id="plBusca" placeholder="Buscar plano / cliente…" style="width:240px">
+    </div>
+    <div class="pg">
+      <div class="tbl" style="max-height:620px"><table><thead id="plTh"></thead><tbody id="plTb"></tbody></table></div>
+      <div class="side" id="plSide"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="plModal" hidden><div class="box">
+    <h3 id="plMT">Cadastrar novo plano</h3>
+    <label>Fábrica</label><select id="mFab"></select>
+    <label>Nome do plano / cliente</label><input type="text" id="mNome" placeholder="Ex.: Auto Peças Padre Cícero">
+    <div class="g2"><div><label>Período</label><select id="mPer"></select></div>
+      <div><label>Código(s) de cliente <small>(opcional)</small></label><input type="text" id="mCod" placeholder="Ex.: 1000005, 1024957"></div></div>
+    <div class="g2"><div><label>Meta Plano (R$)</label><input type="text" id="mMeta" inputmode="decimal" placeholder="0,00"></div>
+      <div><label>Meta Rebate (R$)</label><input type="text" id="mRebate" inputmode="decimal" placeholder="0,00"></div></div>
+    <label>Faturado (R$) <small>— deixe em branco para puxar das vendas pelos códigos de cliente</small></label>
+    <input type="text" id="mFat" inputmode="decimal" placeholder="automático">
+    <div class="acts"><button class="btn" id="mCancel">Cancelar</button><button class="btn sol" id="mSalvar">Salvar plano</button></div>
+  </div></div>
+
   <div id="vCx" hidden>
     <div class="tools"><span class="tit">Clientes que compram as peças das caixas selecionadas <span id="nCx" style="color:var(--cinza);font-weight:400"></span></span>
       <input type="text" id="buscaCx" placeholder="Buscar cliente / cidade…" style="width:240px">
@@ -174,7 +233,7 @@ const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const ordCurva = {AA:0,A:1,B:2,C:3,'Lançamento':4};
 const cls = c => c==='Lançamento'?'cL':'c'+c;
 
-const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli', visao:'cli', dist:0, dSt:'', dBusca:'', dSort:['curva',1] };
+const S = { cli:null, rep:-1, per:'', mont:new Set(), cx:new Set(), grp:new Set(), curva:null, st:'', busca:'', sortP:['curva',1], sortX:['cob',-1], view:'cli', visao:'cli', plFab:'', plPer:'', plBusca:'', dist:0, dSt:'', dBusca:'', dSort:['curva',1] };
 
 function indexar(){
   // vendas por cliente: Map cli -> Map part -> {q,v,last}   (respeita o período)
@@ -223,9 +282,12 @@ function desenharChips(){
 
 function desenhar(){
   const cl=S.cli!==null?C[S.cli]:null;
-  if(S.visao==='dist'){ const d=D[S.dist]; $('hdrCli').innerHTML=d?`Distribuidor: <b>${esc(d.n)}</b> · ${fmtN(Object.keys(d.c).length)} códigos da fábrica cadastrados (caixas)`:'Importe o cadastro de um distribuidor.'; }
+  if(S.visao==='plano'){}
+  else if(S.visao==='dist'){ const d=D[S.dist]; $('hdrCli').innerHTML=d?`Distribuidor: <b>${esc(d.n)}</b> · ${fmtN(Object.keys(d.c).length)} códigos da fábrica cadastrados (caixas)`:'Importe o cadastro de um distribuidor.'; }
   else $('hdrCli').innerHTML=cl?`Cliente: <b>${esc(cl[1])} (${esc(cl[0])})</b> · ${esc(cl[2])}-${esc(cl[3])} · Representante: <b>${esc(R[cl[4]])}</b>`:'Escolha um cliente para ver a cobertura das caixas.';
-  const dist=S.visao==='dist';
+  const plano=S.visao==='plano', dist=S.visao==='dist';
+  $('gFiltros').hidden=plano; $('gPer').hidden=plano; $('vPlano').hidden=!plano;
+  if(plano){ $('hdrCli').textContent='Metas de plano e de rebate por fábrica e cliente — faturado das vendas ou digitado.'; $('gCli').hidden=true; $('gDist').hidden=true; $('tabsCli').hidden=true; $('vCli').hidden=true; $('vDist').hidden=true; $('vCx').hidden=true; desenharPlano(); return; }
   $('gCli').hidden=dist; $('gDist').hidden=!dist; $('tabsCli').hidden=dist;
   $('vDist').hidden=!dist; $('vCli').hidden=dist||S.view!=='cli'; $('vCx').hidden=dist||S.view!=='cx';
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===S.view));
@@ -299,6 +361,92 @@ function desenharDist(){
       ${vend?`<td class="n">${y.q>0?fmtN(y.q):''}</td><td class="n">${y.cl.size||''}</td>`:''}</tr>`;}).join('')
     :'<tr><td colspan="10" class="vazio">Nenhum produto na seleção.</td></tr>';
 }
+
+// ================= PLANO DE NEGÓCIO =================
+const PER={ANO:[1,12,'Ano todo'],T1:[1,3,'1º trimestre'],T2:[4,6,'2º trimestre'],T3:[7,9,'3º trimestre'],T4:[10,12,'4º trimestre'],S1:[1,6,'1º semestre'],S2:[7,12,'2º semestre']};
+let PL=[], FB=['Eurotécnica'], T=DATA.T||[];
+try{ PL=JSON.parse(localStorage.getItem('euro_planos')||'[]')||[]; }catch(e){}
+try{ const f=JSON.parse(localStorage.getItem('euro_fabricas')||'[]')||[]; f.forEach(x=>{ if(!FB.includes(x)) FB.push(x); }); }catch(e){}
+PL.forEach(p=>{ if(p.fab&&!FB.includes(p.fab)) FB.push(p.fab); });
+const salvarPl=()=>{ try{ localStorage.setItem('euro_planos',JSON.stringify(PL)); localStorage.setItem('euro_fabricas',JSON.stringify(FB.filter(f=>f!=='Eurotécnica'))); }catch(e){} };
+const numBR=t=>{ t=String(t||'').replace(/R\$|\s/g,''); if(!t) return null; if(t.includes(',')) t=t.replace(/\./g,'').replace(',','.'); const n=parseFloat(t); return isNaN(n)?null:n; };
+const anoBase=()=>Math.max(...T.map(t=>+t[1].slice(0,4)),new Date().getFullYear());
+function fatAuto(pl){ // soma das vendas dos clientes (códigos) no período do plano
+  const cods=new Set(String(pl.cod||'').split(/[,;\s]+/).filter(Boolean)); if(!cods.size) return null;
+  const ids=new Set(); C.forEach((c,i)=>{ if(cods.has(c[0])) ids.add(i); });
+  const [m1,m2]=PER[pl.per||'ANO'], ano=anoBase(); let tot=0;
+  for(const [ci,ym,v] of T){ if(!ids.has(ci)) continue; const [y,m]=ym.split('-').map(Number); if(y===ano&&m>=m1&&m<=m2) tot+=v; }
+  return tot;
+}
+function ufPl(pl){ const c=String(pl.cod||'').split(/[,;\s]+/).filter(Boolean)[0]; const x=c&&C.find(k=>k[0]===c); return x?x[3]:'—'; }
+function calcPl(pl){ const auto=fatAuto(pl); const fat=pl.fat!=null?pl.fat:(auto!=null?auto:0);
+  return Object.assign({},pl,{uf:ufPl(pl),fat,auto:pl.fat==null&&auto!=null,falta:Math.max(0,(pl.meta||0)-fat),pct:pl.meta?100*fat/pl.meta:0,faltaR:Math.max(0,(pl.rebate||0)-fat),pctR:pl.rebate?100*fat/pl.rebate:0}); }
+function desenharPlano(){
+  const todos=PL.map(calcPl);
+  $('plSelFab').innerHTML='<option value="">Todas as fábricas</option>'+FB.map(f=>`<option ${S.plFab===f?'selected':''}>${esc(f)}</option>`).join('');
+  $('plSelPer').innerHTML='<option value="">Todos os períodos</option>'+Object.keys(PER).map(k=>`<option value="${k}" ${S.plPer===k?'selected':''}>${PER[k][2]}</option>`).join('');
+  const sum=a=>({fm:a.filter(p=>p.meta).reduce((x,p)=>x+p.fat,0),fr:a.filter(p=>p.rebate).reduce((x,p)=>x+p.fat,0),fat:a.reduce((x,p)=>x+p.fat,0),meta:a.reduce((x,p)=>x+(p.meta||0),0),reb:a.reduce((x,p)=>x+(p.rebate||0),0),n:a.length,bat:a.filter(p=>p.meta&&p.fat>=p.meta).length,batR:a.filter(p=>p.rebate&&p.fat>=p.rebate).length});
+  $('plFabs').innerHTML=FB.map(f=>{ const a=todos.filter(p=>p.fab===f), t=sum(a), pc=t.meta?100*t.fm/t.meta:0;
+    return `<div class="fab ${S.plFab===f?'on':''}" data-pf="${esc(f)}"><h4><span>🏭 ${esc(f)}</span><span class="pp ${pc>=100?'ok':''}">${pc.toFixed(1)}%</span></h4>
+      <div class="mini"><div style="width:${Math.min(100,pc)}%"></div></div>
+      <small>Faturado ${fmtR(t.fat)} · Meta plano ${fmtR(t.meta)}</small><small>Meta rebate ${fmtR(t.reb)} · ${t.n} plano(s) · ${t.bat} batido(s)</small></div>`; }).join('')
+    +`<div class="fab" style="border-left-color:var(--preto)" data-pf=""><h4><span>📊 Painel geral</span><span class="pp">${(()=>{const t=sum(todos);return t.meta?(100*t.fm/t.meta).toFixed(1):'0.0';})()}%</span></h4><small>Todas as fábricas (${FB.length})</small><small>${todos.length} plano(s) cadastrados</small></div>`;
+  let l=todos.filter(p=>(!S.plFab||p.fab===S.plFab)&&(!S.plPer||p.per===S.plPer));
+  const q=(S.plBusca||'').trim().toLowerCase(); if(q) l=l.filter(p=>(p.nome+' '+p.cod+' '+p.fab).toLowerCase().includes(q));
+  l.sort((a,b)=>a.fab.localeCompare(b.fab)||a.nome.localeCompare(b.nome));
+  S._rowsPl=l; const t=sum(l);
+  $('plTh').innerHTML='<tr><th>UF</th><th>Cód. cliente</th><th>Plano / cliente</th><th>Fábrica</th><th>Período</th><th class="n">Faturado R$</th><th class="n">Meta plano R$</th><th class="n">Falta R$</th><th class="n">% Plano</th><th class="n">Meta rebate R$</th><th class="n">Falta R$</th><th class="n">% Rebate</th><th></th></tr>';
+  const pc=(v,ok)=>`<span class="pp ${ok?'ok':'no'}">${v.toFixed(1)}%</span>`;
+  $('plTb').innerHTML=l.length?l.map(p=>`<tr><td>${esc(p.uf)}</td><td>${esc(p.cod||'—')}</td><td><b>${esc(p.nome)}</b></td><td>${esc(p.fab)}</td><td>${PER[p.per||'ANO'][2]}</td>
+    <td class="n">${fmtR(p.fat)}${p.auto?' <small title="Puxado das vendas">⚙</small>':''}</td><td class="n">${p.meta?fmtR(p.meta):'—'}</td><td class="n">${p.meta?fmtR(p.falta):'—'}</td><td class="n">${p.meta?pc(p.pct,p.pct>=100):'—'}</td>
+    <td class="n">${p.rebate?fmtR(p.rebate):'—'}</td><td class="n">${p.rebate?fmtR(p.faltaR):'—'}</td><td class="n">${p.rebate?pc(p.pctR,p.pctR>=100):'—'}</td>
+    <td style="white-space:nowrap"><button class="ic" data-pe="${p.id}" title="Editar">✏️</button><button class="ic" data-pd="${p.id}" title="Excluir">🗑</button></td></tr>`).join('')
+    +`<tr class="tot"><td colspan="5">TOTAL GERAL</td><td class="n">${fmtR(t.fat)}</td><td class="n">${fmtR(t.meta)}</td><td class="n">${fmtR(Math.max(0,t.meta-t.fm))}</td><td class="n">${t.meta?(100*t.fm/t.meta).toFixed(1)+'%':'—'}</td><td class="n">${fmtR(t.reb)}</td><td class="n">${fmtR(Math.max(0,t.reb-t.fr))}</td><td class="n">${t.reb?(100*t.fr/t.reb).toFixed(1)+'%':'—'}</td><td></td></tr>`
+    :'<tr><td colspan="13" class="vazio">Nenhum plano cadastrado. Use "➕ Cadastrar novo plano".</td></tr>';
+  $('plSide').innerHTML=`<div style="font-weight:800;font-size:11px;text-transform:uppercase;color:var(--cinza)">📊 Totais do plano</div>
+    <div class="l">Total faturado</div><div class="v" style="color:var(--verde-esc)">${fmtR(t.fat)}</div>
+    <div class="l">Meta plano</div><div class="v">${fmtR(t.meta)}</div>
+    <div class="l">Falta p/ plano</div><div class="v" style="color:var(--nao)">${fmtR(Math.max(0,t.meta-t.fm))}</div>
+    <div class="l">Meta rebate</div><div class="v">${fmtR(t.reb)}</div>
+    <div class="l">Falta p/ rebate</div><div class="v" style="color:var(--nao)">${fmtR(Math.max(0,t.reb-t.fr))}</div>
+    <div class="big"><div class="l" style="margin:0">Resultado do plano</div><b>${t.meta?(100*t.fm/t.meta).toFixed(1):'0.0'}%</b></div>
+    <div class="big"><div class="l" style="margin:0">Resultado do rebate</div><b>${t.reb?(100*t.fr/t.reb).toFixed(1):'0.0'}%</b></div>
+    <div class="l">Total de planos</div><div class="v">${t.n}</div>
+    <div class="l">Planos batidos</div><div class="v" style="color:var(--ok)">${t.bat}</div><small style="color:var(--cinza)">de ${t.n}</small>
+    <div class="l">Rebates batidos</div><div class="v" style="color:var(--ok)">${t.batR}</div><small style="color:var(--cinza)">de ${t.n}</small>`;
+}
+function abrirPlano(id){
+  const p=PL.find(x=>x.id===id)||{}; S._plEdit=id||null;
+  $('plMT').textContent=id?'Editar plano':'Cadastrar novo plano';
+  $('mFab').innerHTML=FB.map(f=>`<option ${f===(p.fab||S.plFab||'Eurotécnica')?'selected':''}>${esc(f)}</option>`).join('');
+  $('mPer').innerHTML=Object.keys(PER).map(k=>`<option value="${k}" ${k===(p.per||'ANO')?'selected':''}>${PER[k][2]} ${anoBase()}</option>`).join('');
+  $('mNome').value=p.nome||''; $('mCod').value=p.cod||''; $('mMeta').value=p.meta!=null?String(p.meta).replace('.',','):''; $('mRebate').value=p.rebate!=null?String(p.rebate).replace('.',','):''; $('mFat').value=p.fat!=null?String(p.fat).replace('.',','):'';
+  $('plModal').hidden=false; $('mNome').focus();
+}
+function novaFabrica(){ const n=(prompt('Nome da nova fábrica:')||'').trim(); if(!n) return null; if(!FB.includes(n)) FB.push(n); salvarPl(); return n; }
+$('plNovo').onclick=()=>abrirPlano(null);
+$('plFab').onclick=()=>{ if(novaFabrica()) desenharPlano(); };
+$('mCancel').onclick=()=>{ $('plModal').hidden=true; };
+$('mFab').onchange=()=>{};
+$('mSalvar').onclick=()=>{
+  const nome=$('mNome').value.trim(); if(!nome){ alert('Informe o nome do plano / cliente.'); return; }
+  const meta=numBR($('mMeta').value), rebate=numBR($('mRebate').value);
+  if(meta===null&&rebate===null){ alert('Informe a Meta Plano e/ou a Meta Rebate.'); return; }
+  const pl={id:S._plEdit||('p'+Date.now()),fab:$('mFab').value,nome,cod:$('mCod').value.trim(),per:$('mPer').value,meta:meta||0,rebate:rebate||0,fat:numBR($('mFat').value)};
+  const i=PL.findIndex(x=>x.id===pl.id); if(i>=0) PL[i]=pl; else PL.push(pl);
+  salvarPl(); $('plModal').hidden=true; desenharPlano();
+};
+$('plSelFab').onchange=e=>{S.plFab=e.target.value;desenharPlano();};
+$('plSelPer').onchange=e=>{S.plPer=e.target.value;desenharPlano();};
+$('plBusca').oninput=e=>{S.plBusca=e.target.value;desenharPlano();};
+$('plFabs').addEventListener('click',e=>{ const c=e.target.closest('[data-pf]'); if(c){ S.plFab=c.dataset.pf; desenharPlano(); } });
+$('plTb').addEventListener('click',e=>{
+  const ed=e.target.closest('[data-pe]'), de=e.target.closest('[data-pd]');
+  if(ed) abrirPlano(ed.dataset.pe);
+  if(de&&confirm('Excluir este plano?')){ PL=PL.filter(x=>x.id!==de.dataset.pd); salvarPl(); desenharPlano(); }
+});
+$('plExp').onclick=()=>baixar(S._rowsPl.map(p=>[p.uf,p.fab,p.nome,p.cod,PER[p.per||'ANO'][2],p.fat,p.meta,p.falta,+p.pct.toFixed(1),p.rebate,p.faltaR,+p.pctR.toFixed(1)]),
+  ['UF','Fábrica','Plano / cliente','Cód. cliente','Período','Faturado','Meta plano','Falta plano','% Plano','Meta rebate','Falta rebate','% Rebate'],'plano_de_negocio.xlsx');
 
 function desenharCaixaCliente(){
   const base=new Set(selecaoPartes()); const q=$('buscaCx').value.trim().toLowerCase();
