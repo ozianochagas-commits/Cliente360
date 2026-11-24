@@ -7,6 +7,7 @@ import openpyxl
 
 caixas_xlsx, vendas_xlsx = sys.argv[1], sys.argv[2]
 estoque_xlsx = sys.argv[3] if len(sys.argv) > 3 else None
+cadastro_xlsx = sys.argv[4] if len(sys.argv) > 4 else None
 here = os.path.dirname(os.path.abspath(__file__))
 SKIP = {'Análise Caixas', 'Lista', 'Cadastro Padre Cícero'}
 
@@ -105,6 +106,23 @@ print('vendas casadas com o catálogo:', dict(casou))
 dpc = {}
 for cod, (c, desc, sit) in pc.items():
     if cod in pidx: dpc[pidx[cod]] = [c, desc, sit]
+if cadastro_xlsx:  # base de cadastro do distribuidor (Material = cód. dele, REFERENCIA = cód. Eurotécnica); casa por código exato ou 8 primeiros dígitos
+    import unicodedata
+    def _n(t): return unicodedata.normalize('NFD', str(t or '')).encode('ascii', 'ignore').decode().lower().strip()
+    cw = openpyxl.load_workbook(cadastro_xlsx, read_only=True, data_only=True).active
+    crow = list(cw.iter_rows(values_only=True))
+    hi = next(i for i, r in enumerate(crow[:15]) if any(_n(x) == 'referencia' for x in r) and any(_n(x) == 'material' for x in r))
+    H = [_n(x) for x in crow[hi]]
+    ie, im, ids, ist = H.index('referencia'), H.index('material'), next((i for i, x in enumerate(H) if 'descri' in x), -1), next((i for i, x in enumerate(H) if 'situa' in x or 'stiua' in x), -1)
+    novo = {}
+    for r in crow[hi + 1:]:
+        cod = s(r[ie])
+        if not cod or (ist >= 0 and _n(r[ist]) not in ('', 'ativo')): continue
+        pi, como = resolver_peca(cod)
+        if pi is None or (pi in novo and como != 'exato'): continue
+        novo[pi] = [s(r[im]).replace('.0', ''), s(r[ids]) if ids >= 0 else '', 'ATIVO']
+    print('cadastro do distribuidor:', len(novo), 'códigos de caixa (antes:', len(dpc), ')')
+    dpc = novo
 D = [{'n': 'Padre Cícero', 'vendas': 1, 'c': dpc}]
 if estoque_xlsx:  # estoque livre por loja (planilha "ESTOQUE_EUROTECNICA": Produto, Referencia, ..., Util.livre, Loja)
     ew = openpyxl.load_workbook(estoque_xlsx, read_only=True, data_only=True).active
