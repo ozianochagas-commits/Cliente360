@@ -57,6 +57,20 @@ for ws in wb:
         ids.append(pidx[cod])
     caixas.append({'n': ws.title, 'm': mont.get(ws.title, 'OUTRAS'), 'p': sorted(set(ids))})
 
+# ---- foto de cada caixa: desenho explodido (página 1 do PDF do catálogo Eurotécnica), já convertido em fotos/<arquivo>.jpg
+# O nome do arquivo é o do PDF; quando o PDF tem outro nome que a caixa deste sistema, o casamento é pelo "Conjunto" do PDF:
+FOTO_ALIAS = {'16S-1900': '16S-190',                  # PDF "Conjunto: 16S 190"
+              'G-330': 'G-281-330',                   # PDF "Conjunto: G 281/330-12"
+              'GRSO-905': 'GRS-905',                  # PDF "GR / GRS / GRSO 905"
+              'GRS-905R e GRSO-905R': 'GRS-905',      # versões com retarder: mesmo conjunto 905 (confirmar)
+              'GRS-925': 'GRSO-925',                  # PDF "GRSO 925 / 925R" (confirmar)
+              'GRSO-925 e GRSO-925R': 'GRSO-925'}
+for c in caixas:
+    for stem in (c['n'], FOTO_ALIAS.get(c['n'])):
+        if stem and os.path.exists(os.path.join(here, 'fotos', stem + '.jpg')):
+            c['f'] = 'fotos/' + stem + '.jpg'; break
+print('caixas com foto:', sum(1 for c in caixas if c.get('f')), 'de', len(caixas), '| sem foto:', [c['n'] for c in caixas if not c.get('f')])
+
 # ---- itens SEM caixa (lista de preços com família): cada Grupo vira uma família (botão "<Grupo>") na montadora FAMÍLIAS
 def _grupo_canon(vals):
     c = collections.Counter(vals); best = {}

@@ -204,6 +204,7 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
       <span class="tit">Produtos <span id="nProd" style="color:var(--cinza);font-weight:400"></span></span>
       <input type="text" id="busca" placeholder="Buscar código, descrição ou aplicação…" style="width:240px">
       <select id="selSt"><option value="">Todos os status</option><option value="n">Só oportunidades (não compra)</option><option value="s">Só o que já compra</option></select>
+      <button class="btn" id="btnPdf" title="PDF da(s) caixa(s) marcada(s): foto em cima e, embaixo, o que o cliente comprou e não comprou">📄 PDF da caixa</button>
       <button class="btn" id="btnExp">⬇ Exportar</button>
     </div>
     <div class="tbl"><table><thead id="thP"></thead><tbody id="tbP"></tbody></table></div>
@@ -227,6 +228,7 @@ tr.tot td{background:var(--verde);color:#fff;font-weight:800}
       <select id="dSelSt"></select>
       <button class="btn" id="dBtnSoSel" hidden></button>
       <button class="btn" id="dBtnRepo" hidden title="Itens que a loja vendeu e está sem estoque: sugere a quantidade pela média mensal ou pelo total vendido">📦 Reposição</button>
+      <button class="btn" id="dBtnPdf" title="PDF da(s) caixa(s) marcada(s): foto em cima e, embaixo, o que o distribuidor tem e não tem">📄 PDF da caixa</button>
       <button class="btn" id="dBtnExp" title="Exporta a lista (ou só os produtos marcados)">⬇ Exportar</button>
     </div>
     <div class="tbl"><table><thead id="dTh"></thead><tbody id="dTb"></tbody></table></div>
@@ -939,6 +941,60 @@ $('inpCli').oninput=listaCli; $('inpCli').onfocus=listaCli;
 $('ddCli').addEventListener('click',e=>{ const li=e.target.closest('[data-pick]'); if(li){ e.stopPropagation(); escolherCliente(+li.dataset.pick); } });
 
 // ---- exportar
+// ================= PDF DA CAIXA: foto em cima, embaixo o que comprou / não comprou (ou tem / não tem) =================
+function vendidoDist(d,i){ if(!S.dFils.size){ const y=S._vp.get(i); return y?y.q:0; } const vm=d.vl&&d.vl[i]; let t=0; if(vm) S.dFils.forEach(l=>{ if(vm[l]) t+=vm[l].slice(0,d.nm).reduce((a,x)=>a+x,0); }); return t; }
+function pdfCaixas(modo){
+  const dist=modo==='dist', sel=CX.filter(c=>S.cx.has(c.n));
+  if(!sel.length){ alert('Marque a caixa (ou as caixas) no filtro "Caixas e famílias" para gerar o PDF.'); return; }
+  if(!dist&&S.cli===null){ alert('Escolha um cliente para ver o que ele comprou e não comprou.'); return; }
+  const d=D[S.dist], est=dist&&d&&d.e&&S.dLeit==='est', cl=S.cli!==null?C[S.cli]:null, m=(!dist&&cl)?(S._idx.get(S.cli)||new Map()):new Map();
+  const per=S.per?mesNome(S.per):'todo o período', hoje=new Date().toLocaleDateString('pt-BR')+' '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const ord=(a,b)=>((ordCurva[P[a][2]]??9)-(ordCurva[P[b][2]]??9))||P[a][0].localeCompare(P[b][0]);
+  const bd=i=>`<span class="b b${P[i][2]==='Lançamento'?'L':(P[i][2]||'x')}">${P[i][2]==='Lançamento'?'L':(P[i][2]||'—')}</span>`;
+  const tab=(cls,tit,cab,linhas)=>`<div class="sec ${cls}"><h3>${tit} <small>(${linhas.length})</small></h3>${linhas.length?`<table><thead><tr>${cab.map(([t,n])=>`<th class="${n||''}">${t}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table>`:'<p class="vz">Nenhum item.</p>'}</div>`;
+  const pag=sel.map(c=>{
+    const itens=c.p.slice().sort(ord); let resumo, blocos;
+    if(!dist){
+      const ok=[], no=[];
+      itens.forEach(i=>{ const x=m.get(i), comp=comprou(x); const p=P[i];
+        if(comp) ok.push(`<tr><td class="cd">${esc(p[0])}</td><td>${esc(p[1])}</td><td class="n">${p[10]}</td><td>${bd(i)}</td><td class="n">${fmtN(x.q)}</td><td>${x.last?serial2str(x.last):''}</td></tr>`);
+        else no.push(`<tr><td class="cd">${esc(p[0])}</td><td>${esc(p[1])}</td><td class="n">${p[10]}</td><td>${bd(i)}</td><td>${x&&x.g>0?'comprou e devolveu':''}</td></tr>`); });
+      const pc=itens.length?(100*ok.length/itens.length).toFixed(1):'0.0';
+      resumo=`<div class="res"><b class="v">${ok.length}</b> de ${itens.length} itens comprados <i>(${pc}%)</i><span class="x"><b class="r">${no.length}</b> não comprou</span></div>`;
+      blocos=tab('ok','✔ COMPROU',[['Código'],['Produto'],['Qtd. aplic.','n'],['Curva'],['Qtd. comprada','n'],['Última compra']],ok)+tab('no','✘ NÃO COMPROU',[['Código'],['Produto'],['Qtd. aplic.','n'],['Curva'],['Obs.']],no);
+    } else {
+      const tem=[], nao=[]; let nEst=0;
+      itens.forEach(i=>{ const q=est?estPart(d,i,null).q:0, cad=d.c[i]!==undefined, ex=cad||q>0, p=P[i];
+        if(ex){ if(q>0) nEst++; const v=vendidoDist(d,i);
+          tem.push(`<tr><td class="cd">${esc(p[0])}</td><td class="cd">${esc(d.c[i]?d.c[i][0]:'')}</td><td>${esc(p[1])}</td><td class="n">${p[10]}</td><td>${bd(i)}</td>${est?`<td class="n">${q>0?`<b>${fmtN(q)}</b>`:'<span class="sem">sem estoque</span>'}</td>`:''}<td class="n">${v>0?fmtN(v):'0'}</td></tr>`); }
+        else nao.push(`<tr><td class="cd">${esc(p[0])}</td><td>${esc(p[1])}</td><td class="n">${p[10]}</td><td>${bd(i)}</td></tr>`); });
+      const pc=itens.length?(100*tem.length/itens.length).toFixed(1):'0.0';
+      resumo=`<div class="res"><b class="v">${tem.length}</b> de ${itens.length} itens cadastrados <i>(${pc}%)</i>${est?`<span class="x"><b class="v">${nEst}</b> com estoque</span>`:''}<span class="x"><b class="r">${nao.length}</b> faltam cadastrar</span></div>`;
+      blocos=tab('ok','✔ O DISTRIBUIDOR TEM',[['Código'],['Cód. '+d.n],['Produto'],['Qtd. aplic.','n'],['Curva'],...(est?[['Estoque','n']]:[]),['Vendido','n']],tem)+tab('no','✘ NÃO TEM CADASTRO',[['Código'],['Produto'],['Qtd. aplic.','n'],['Curva']],nao);
+    }
+    const foto=c.f?`<img class="foto" src="${esc(new URL(c.f,location.href).href)}" alt="Caixa ${esc(c.n)}">`:`<div class="semfoto">${c.m==='FAMÍLIAS'?'Família de itens sem caixa':'Foto desta caixa não cadastrada'}</div>`;
+    return `<section class="cx"><div class="topo"><div><b>EUROTÉCNICA 360</b> · ${dist?`Distribuidor: <b>${esc(d.n)}</b>`:`Cliente: <b>${esc(cl[1])}</b> (${esc(cl[0])}) · ${esc(cl[2])}-${esc(cl[3])}`}</div><div>${esc(hoje)}</div></div>
+      <h2>${c.m==='FAMÍLIAS'?'Família':'Caixa'} ${esc(c.n)}${c.m!=='FAMÍLIAS'?` <small>${esc(c.m)}</small>`:''}</h2>${foto}${resumo}${blocos}</section>`;
+  }).join('');
+  const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>PDF ${dist?esc(d.n):esc(cl[1])} — ${sel.map(c=>esc(c.n)).join(', ')}</title><style>
+    @page{size:A4;margin:9mm}*{box-sizing:border-box}body{margin:0;font:10.5px/1.3 Arial,Helvetica,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .barra{position:sticky;top:0;background:#111;color:#fff;padding:8px 14px;display:flex;gap:12px;align-items:center;font-size:13px}.barra button{background:#009a4e;color:#fff;border:0;border-radius:6px;padding:7px 14px;font-weight:700;cursor:pointer}
+    .cx{page-break-after:always;padding:2mm 1mm}.cx:last-child{page-break-after:auto}.topo{display:flex;justify-content:space-between;color:#555;font-size:10px;border-bottom:2px solid #009a4e;padding-bottom:3px}
+    h2{margin:7px 0 4px;font-size:17px;background:#111;color:#fff;padding:5px 10px;border-left:6px solid #009a4e}h2 small{font-size:10px;font-weight:400;color:#9fd9b8;margin-left:8px}
+    .foto{display:block;margin:4px auto 6px;max-width:100%;max-height:13.2cm;object-fit:contain;border:1px solid #ddd}.semfoto{margin:6px 0;padding:34px;text-align:center;background:#f1f3f2;color:#777;border:1px dashed #bbb}
+    .res{margin:4px 0 6px;font-size:12px;padding:6px 10px;background:#eaf6ef;border:1px solid #b9e0c9;border-radius:4px}.res .v{color:#0a7a40;font-size:15px}.res .r{color:#c0392b;font-size:15px}.res .x{margin-left:18px}.res i{color:#555}
+    .sec{margin-top:7px}.sec h3{margin:0;padding:4px 8px;font-size:11.5px;color:#fff}.sec h3 small{font-weight:400}.sec.ok h3{background:#0a8f4a}.sec.no h3{background:#c0392b}
+    table{width:100%;border-collapse:collapse}thead{display:table-header-group}tr{page-break-inside:avoid}th{background:#eef1f0;text-align:left;font-size:9px;text-transform:uppercase;padding:3px 5px;border-bottom:1px solid #999}
+    td{padding:2.5px 5px;border-bottom:1px solid #e3e6e5;vertical-align:top}.n{text-align:right;white-space:nowrap}.cd{white-space:nowrap}.sem{color:#c0720a;font-weight:700}.vz{margin:6px;color:#777}
+    .b{display:inline-block;min-width:16px;text-align:center;color:#fff;border-radius:3px;font-weight:700;font-size:9px;padding:0 4px}.bAA{background:#006e38}.bA{background:#009a4e}.bB{background:#d98e04}.bC{background:#5b6770}.bL{background:#7a3fb0}.bx{background:#9aa3a8}
+    @media print{.barra{display:none}}
+  </style></head><body><div class="barra"><span>Para salvar em PDF: <b>Imprimir → Destino: Salvar como PDF</b></span><button onclick="window.print()">🖨 Imprimir / Salvar PDF</button></div>${pag}</body></html>`;
+  const w=window.open('','_blank'); if(!w){ alert('O navegador bloqueou a janela do PDF. Permita pop-ups para este site e clique de novo.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+  const prontas=[...w.document.images].map(im=>im.complete?Promise.resolve():new Promise(r=>{ im.onload=im.onerror=r; }));
+  Promise.all(prontas).then(()=>setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} },350));
+}
+$('btnPdf').onclick=()=>pdfCaixas('cli'); $('dBtnPdf').onclick=()=>pdfCaixas('dist');
 function baixar(linhas,cab,nome){
   const ws=XLSX.utils.aoa_to_sheet([cab,...linhas]); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Dados'); XLSX.writeFile(wb,nome);
 }
